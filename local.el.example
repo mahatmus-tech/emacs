@@ -1,0 +1,47 @@
+;;; local.el.example --- copy to local.el and fill in your own values -*- lexical-binding: t -*-
+;; local.el is gitignored and loaded right after custom.el, before straight
+;; bootstraps — see README.org "How personalization works". Every variable
+;; here is optional: omit what you don't use, nothing errors on absence.
+;;
+;; Rule: local.el may only reference symbols defined by custom.el (defvar'd
+;; with generic defaults there) — no external package symbols at top level,
+;; same constraint custom.el itself follows.
+
+;; Google Calendar accounts — (calendar-id file label face), one per
+;; calendar. Drives org-gcal sync, the generated "Event — Google Calendar
+;; (<label>)" capture templates (first is bound to "e", second to "E"),
+;; and the calfw calendar-view color for that account.
+(setq me/gcal-calendars
+      '(("you@gmail.com" "~/org/agenda/gcal-personal.org" "Personal" font-lock-keyword-face)
+        ("you@work.example.com" "~/org/agenda/gcal-work.org" "Work" font-lock-constant-face)))
+
+;; Repos auto-opened (own tabspace + Magit + Dirvish side panel) by
+;; `me/setup-workspaces' (C-c w). The tracked default only has this repo
+;; itself; add your other repos here.
+(setq me/workspace-default-repos
+      '("~/repos/dotfiles/"
+        "~/repos/some-other-project/"))
+
+;; Forge (magit-forge) accounts whose issues/MRs you want listed —
+;; same shape as `forge-owned-accounts'.
+(setq me/forge-owned-accounts
+      '(("your-github-or-gitlab-username-or-org")))
+
+;; Extra org-roam-capture-templates entries, spliced in after the generic
+;; ones (same shape as `org-roam-capture-templates' entries) — typically
+;; work-specific targets you'd rather not have world-readable.
+(setq me/roam-work-templates
+      '(("w" "Work" plain "%?"
+         :target (file+head "work/${slug}.org"
+                            ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n#+filetags: :work:\n#+date: %<%Y-%m-%d>\n")
+         :unnarrowed t)))
+
+;; Extra HTML export theme(s), appended to the tracked "default" theme —
+;; same shape as `me/ox-html-theme-alist' entries: name -> (css-file .
+;; postamble-logo-file-or-nil). Put the theme's own folder under
+;; ox-html-themes/<name>/ (already gitignored for any name other than
+;; "default").
+(setq me/ox-html-theme-alist
+      (append me/ox-html-theme-alist
+              `(("work" . (,(expand-file-name "work/style.css" me/ox-html-themes-dir) .
+                           ,(expand-file-name "work/assets/logo.png" me/ox-html-themes-dir))))))

@@ -1,0 +1,206 @@
+#+TITLE: Mahatmus Emacs Configuration
+#+OPTIONS: toc:2 num:nil
+
+A single-user, ~use-package~ + ~straight.el~ Emacs configuration built around three things: a fast startup, a vertico/corfu/consult completion stack, and Org-mode as a full Todoist replacement. Clojure is the primary language target (Cider + Eglot), with extras for Git review (Magit/Forge/pr-review), AI pair-programming (=claude-code-ide=), and self-contained HTML/reveal.js export from Org.
+
+It is meant to be read, not just loaded: every file uses a personal outline convention (see [[*Reading this config][Reading this config]]) so the whole thing folds down to a table of contents in one keystroke.
+
+* Requirements
+
+- *Emacs 29.1+* — =setopt= and a couple of other settings used here need it. Developed and tested on Emacs 30.
+- *git* — for =straight.el= to clone packages.
+- *ripgrep* (=rg=) — used by =consult-ripgrep=, =dumb-jump=, and project search.
+- *fd* — used by Dirvish for fast large-directory listing.
+- Optional, only if you use the matching feature:
+  - *mermaid-cli* (=mmdc=) + a Chromium/headless-shell binary — for rendering =mermaid= diagrams from Org babel blocks.
+  - A GitLab or GitHub account — for Magit/Forge/pr-review.
+  - =claude= CLI — for =claude-code-ide=.
+
+* Installation
+
+#+begin_src shell
+  mv ~/.emacs.d ~/.emacs.d.bak   # back up whatever you have
+  git clone <this-repo-url> ~/.emacs.d
+  emacs
+#+end_src
+
+First launch bootstraps =straight.el= itself, then installs every package declared in =init.el=. This downloads a fair amount and takes a couple of minutes; subsequent launches are fast (deferred loading + cached autoloads, see [[*Performance][Performance]]).
+
+** How personalization works
+
+This repo is meant to be cloned and used as-is — it ships with generic, empty defaults for anything personal or employer-specific. Real values (accounts, extra repos, a branded export theme) live in your own =local.el=, a file this repo's =.gitignore= keeps out of version control entirely.
+
+Copy =local.el.example= to =local.el= and fill in what you use:
+
+#+begin_src shell
+  cp local.el.example local.el
+#+end_src
+
+=local.el= loads right after =custom.el=, before any package is fetched. If it doesn't exist, Emacs starts fine — the features it would configure (Google Calendar sync, a forge/GitLab account, extra org-roam capture targets, an extra HTML export theme, extra workspace repos) are simply absent rather than erroring. See =local.el.example= for the full list of overridable variables and their expected shape.
+
+A couple of other things still carry *my own* paths as working examples — search for these and adjust to yours:
+
+| What                            | Where                                        |
+|---------------------------------+-----------------------------------------------|
+| Org agenda categories/files     | ~me/org-agenda-categories~ in =custom.el=      |
+| Org directory / roam directory  | ~org-directory~, ~org-roam-directory~ in =init.el= |
+
+* Reading this config
+
+=init.el=, =custom.el=, and =early-init.el= use a personal Outline-mode convention instead of a wall of prose:
+
+| Marker  | Meaning                                                 |
+|---------+---------------------------------------------------------|
+| =;;; ---= | Section (level 1 heading, folds closed on open)         |
+| =;;;; -=  | Subsection (level 2 heading)                            |
+| =;>=      | Inline comment on a config item — the *why*, not the *what* |
+| =;.=      | Same, for a sub-item inside that config item            |
+
+Open =init.el= (=C-c e=) and it starts folded to section level. From there:
+
+| Key     | Action                                                |
+|---------+-------------------------------------------------------|
+| =TAB=     | On a heading: cycle hide → children → expand          |
+| =S-TAB=   | On a heading: collapse to heading only                |
+| =C-c C-t= | Expand only headings (whole-buffer table of contents) |
+| =C-c C-y= | Collapse all, back to open-file state                 |
+| =M-g o=   | Jump to any heading by name (=consult-outline=)         |
+
+* Performance
+
+Startup is optimized in a few concrete ways:
+
+- =early-init.el= disables =package.el=, raises =gc-cons-threshold= to its max during boot, and empties =file-name-handler-alist= (restored after startup) — standard tricks that skip work Emacs would otherwise do before it even gets to loading packages.
+- =straight-cache-autoloads t= merges every package's autoloads into one file instead of one per package.
+- =use-package-always-defer t= — nothing loads eagerly unless it opts in via =:demand t=, =:hook=, =:bind=, or =:commands=. Heavy UI packages (corfu, vertico, dirvish, doom-modeline, which-key, gcmh, ...) are hooked to =after-init= so they activate right after the frame is visible instead of blocking it.
+- [[https://github.com/emacsmirror/gcmh][gcmh]] replaces manual GC-threshold juggling — high threshold while you work, low threshold when idle.
+
+=M-x emacs-init-time= reports the last startup; =M-x profiler-start= / =profiler-report= (built-in) show where time actually goes.
+
+* Feature tour
+
+** Completion stack
+Vertico (vertical minibuffer) + Corfu (in-buffer completion popup) + Orderless (space-separated fuzzy matching) + Consult (search/navigation commands) + Marginalia (annotations) + Embark (act on the candidate at point). This is the standard "Vertico stack" — see [[https://github.com/minad/vertico][minad/vertico]] if you're unfamiliar with it.
+
+** Editing
+Paredit on all Lisps (Elisp, Clojure, Scheme, Cider REPL), Rainbow-delimiters + paren-face to make nesting legible, multiple-cursors, electric-pair-mode, and =hs-minor-mode= code folding everywhere via =C-c @ C-h=.
+
+** Files & projects
+Dirvish (Dired with icons, git status, previews) is both the file explorer and, through =dirvish-side=, the project sidebar — one panel per tab, following the current buffer's file. =project.el= drives project-wide search/find-file/replace under the =C-c p= prefix.
+
+*** Per-repo workspaces (tab-bar + tabspaces)
+Each repo gets its own tab with an isolated buffer list, its own Dirvish side panel, and Magit already open:
+
+| Key   | Command                   | Does                                                               |
+|-------+---------------------------+--------------------------------------------------------------------|
+| =C-c w= | ~me/setup-workspaces~       | Opens one tab per repo listed in ~me/workspace-default-repos~        |
+| =C-c o= | ~me/open-project-workspace~ | Prompts for any directory under =~/repos/= and opens it the same way |
+| =C-c t= | ~me/open-terminal~          | Opens a =eat= terminal named after the current project               |
+
+Dirvish scopes its sessions per tab, so every tab keeps its own side panel with no syncing code (~me/open-repo-workspace~ in =custom.el= is the whole setup).
+
+Tabs survive restarts: =tabspaces-session= writes every tab's buffer list to =var/tabspaces-session.eld= on exit, and =C-c W= (~tabspaces-restore-session~) brings them back on demand — never automatically, because Emacs is also launched for one-off system files. Only buffers come back — window layouts are deliberately dropped (they fight Dirvish's side windows), each Dirvish side panel is rebuilt from its directory once startup is over, terminals (=eat=, =ghostel=, Claude) are skipped rather than resurrected as empty shells, and you land on the first saved tab. =C-c w= still works on a restored tab (it just re-adds Magit + the panel).
+
+** Clojure
+[[https://github.com/clojure-emacs/clojure-ts-mode][clojure-ts-mode]] (tree-sitter, Emacs 30) is the editing mode — =clojure-mode= stays installed as CIDER's dependency, and =major-mode-remap-alist= redirects =.clj/.cljs/.cljc/.edn= to the =-ts-= variants lazily. Grammars (=clojure=, =regex=, =markdown-inline=) are compiled into =tree-sitter/= on first use; that needs a C compiler. Cider for the REPL/jack-in workflow, Eglot (+ eglot-booster for faster JSON parsing) for LSP-backed navigation/completion, with diagnostics in the built-in Flymake (=M-g f= lists them via consult). See the =:init= block of the =cider= package in =init.el= for the full list of tuned Cider defaults (each has a =;.= comment explaining the choice).
+
+** YAML & Dockerfile
+The built-in tree-sitter modes (=yaml-ts-mode=, =dockerfile-ts-mode=, Emacs 30) are wired with explicit =:mode= entries, because their own =auto-mode-alist= registration only runs once the mode file loads — which never happens under =use-package-always-defer=. All YAML (compose files included) is =yaml-ts-mode=; the former =docker-compose-mode= was dropped (its =yaml-mode= parent fought with =yaml-ts-mode= over =auto-mode-alist=, and its key completion stopped at compose v3), while =C-c d= still opens the =docker= package's compose transient. Grammar sources live in the =treesit= block (=init.el=, Languages → Settings); build a missing one with =M-x treesit-install-language-grammar= (needs =git= and a C compiler) — it lands in =tree-sitter/=.
+
+** Version control
+Magit for the porcelain, [[https://github.com/magit/forge][Forge]] for GitHub/GitLab merge requests and issues inside Magit, and [[https://github.com/blahgeek/emacs-pr-review][pr-review]] for inline review comments on the diff (GitLab support is experimental). Forge setup requires a personal access token in =~/.authinfo= — see Forge's own [[https://docs.magit.vc/forge/Setup-for-Gitlabcom.html][GitLab setup guide]].
+
+** Org-mode as a task manager
+A full Todoist replacement, built on top of stock Org:
+
+- Workflow: =INBOX → TODO → NEXT → WAIT → DONE / CANCELED=
+- Priorities =[#A]/[#B]/[#C]= map to Todoist's P1/P2/P3; no cookie = P4.
+- Context tags (=@work=, =@home=, =@computer=, =@phone=, =@errand=) mirror Todoist labels.
+- ~me/org-agenda-categories~ in =custom.el= is the single source of truth: each =(key label file has-agenda-view face)= entry generates one capture template, one refile target, — if flagged — one dedicated agenda view, and one colored calendar source. Add a category there instead of editing four separate lists.
+- =C-c c= (capture) and =C-c a= (agenda) are the daily entry points; see the tables below.
+
+*** Capture (=C-c c=)
+| Key                | Goes to                                     |
+|--------------------+---------------------------------------------|
+| =i=                  | Quick inbox capture, no context needed      |
+| =t=                  | Inbox capture with a deadline prompt        |
+| ={per-category key}= | Directly into that category's file, as =TODO= |
+| =e=                  | Google Calendar event (title + =<date time-time>=); =C-c G= on it publishes |
+
+*** Agenda views (=C-c a=)
+| Key                        | View                                             |
+|----------------------------+--------------------------------------------------|
+| =d=                          | Today — day agenda + Next Actions + Inbox review |
+| =u=                          | Upcoming 7 days                                  |
+| ={CATEGORY}= (uppercase key) | That category's active tasks only                |
+| =I=                          | Inbox Review — everything still unprocessed      |
+| =A=                          | All Active — every TODO/NEXT/WAIT everywhere     |
+| =P=                          | Priority P1 — urgent items only                  |
+
+Processing the inbox: refine (=INBOX= → =TODO= + priority + date), refile (=C-c C-w=) into the right category, or park it in =someday.org= if it's not actionable yet. =DONE= items should be archived (=C-c C-x C-a=) to keep the agenda clean.
+
+*** Calendar (=C-c C=)
+The same agenda files, drawn as a calendar by [[https://github.com/kiwanami/emacs-calfw][calfw]] 2.0 plus [[https://github.com/haji-ali/calfw-blocks][calfw-blocks]]: =C-c C= (~me/calendar~) opens the week as time blocks — entries with a time (=<2026-08-12 Wed 10:00-11:30>= or a timed =SCHEDULED=) become blocks sized by their duration, all-day entries and multi-day ranges sit in the strip at the top, and each category draws in its own theme color (work = function-name face, home = string face, learn = type face; =inbox.org=/=someday.org= in grey). Brazilian national holidays show in the cells (~calendar-holidays~).
+
+| Key                 | Does                                                        |
+|---------------------+-------------------------------------------------------------|
+| =RET= / mouse-1       | Jump to the Org entry                                       |
+| =SPC=                 | That day's org-agenda (then =g= to refresh — the agenda resets the calendar's markers) |
+| =D= / =W= / =T= / =M=       | Day / week / two-week / month (list) views                  |
+| toolbar buttons     | Block views: Day, 3-Day, Week                               |
+| =f= =b= / =n= =p= / =<= =>=   | Next / previous day / week / view period                    |
+| =t= / =M-g= / =TAB=       | Today / go to date / next item                              |
+| =g=                   | Refresh                                                     |
+| =q=                   | Bury                                                        |
+
+Under the hood ~me/calendar--org-source~ (=custom.el=) wraps calfw-org's collector and turns each agenda item into a ~calfw-event~ struct — calfw-blocks only understands those, while calfw-org still hands out plain strings.
+
+*** Google Calendar (=C-c g=)
+[[https://github.com/kidd/org-gcal.el][org-gcal]] syncs Google calendars into =agenda/gcal-*.org= two-way, so events show up in =C-c a= and =C-c C= next to the tasks. =C-c g= (~org-gcal-sync~) pulls the window (30 days back, 60 ahead) and pushes local edits of already-synced entries; it never runs on its own. The first sync per calendar opens the browser for the OAuth consent — each calendar id gets its own token, so a work calendar can be authorized with the work account even though the README says "one account". New events start as the =e= capture template (or any heading with a =:calendar-id:= property and an =:org-gcal:= drawer holding the timestamp) and go up with =C-c G= (~org-gcal-post-at-point~). ~me/gcal-calendars~ (=custom.el=) is the list of =(calendar-id file label face)= — it feeds ~org-gcal-fetch-file-alist~ and gives each calendar its own color in the calfw view. The OAuth client id/secret live in =~/.authinfo= (=machine org-gcal login ID password SECRET=); tokens are kept encrypted in =var/oauth2-auto.plstore= — with no GPG key on the machine that is symmetric encryption, so the passphrase is asked once per session.
+
+
+A Todoist CSV → Org converter is included for migrating away from Todoist entirely — see its own header comment for usage.
+
+** Org export & presentations
+- *Self-contained HTML export* (=ox-html= + =htmlize=): pick a CSS theme per file with =#+HTML_THEME: name=, images (including generated diagrams) are inlined as base64 so the exported =.html= is a single portable file — no external assets, no broken links when you email it or drop it in a wiki.
+- *Mermaid diagrams* via [[https://github.com/arnm/ob-mermaid][ob-mermaid]]: =#+begin_src mermaid :file diagram.svg= blocks render to SVG on =C-c C-c=, shown inline in the buffer.
+- *Reveal.js presentations* via [[https://gitlab.com/oer/org-re-reveal][org-re-reveal]]: any Org file exports to a full HTML5 slide deck with =C-c C-e R R=.
+
+** Claude Code integration
+[[https://github.com/manzaltu/claude-code-ide.el][claude-code-ide.el]] runs Claude Code inside a [[https://github.com/dakra/ghostel][ghostel]] terminal per project (the backend upstream recommends for artifact-free TUI rendering; =eat= stays installed for =C-c t= and as fallback) and exposes Emacs' own xref/diagnostics/imenu to it over MCP.
+
+| Key   | Command                 | Does                                                     |
+|-------+-------------------------+----------------------------------------------------------|
+| =C-c k= | ~claude-code-ide-menu~    | Open/toggle Claude for the current project               |
+| =C-c r= | ~me/claude-review-branch~ | Open Claude and send =/code-review= for the current branch |
+
+Multiple projects each get their own session; =M-x claude-code-ide-list-sessions= lists and switches between them.
+
+* Keybinding cheat sheet
+
+| Key             | Command                     | Does                                                          |
+|-----------------+-----------------------------+---------------------------------------------------------------|
+| =C-c w=           | ~me/setup-workspaces~         | Open a tab per repo in ~me/workspace-default-repos~             |
+| =C-c W=           | ~tabspaces-restore-session~   | Reopen last session's tabs (buffers + side panels)            |
+| =C-c o=           | ~me/open-project-workspace~   | Open a new repo in an isolated tab                            |
+| =C-c t=           | ~me/open-terminal~            | Terminal scoped to the current project                        |
+| =C-c k=           | ~claude-code-ide-menu~        | Claude Code for the current project                           |
+| =C-c r=           | ~me/claude-review-branch~     | Claude =/code-review= on the current branch                     |
+| =C-c f=           | ~dirvish~                     | Open Dirvish here                                             |
+| =C-c d=           | ~docker-compose~              | Docker Compose UI                                             |
+| =C-c a=           | ~org-agenda~                  | Open the agenda dispatcher                                    |
+| =C-c c=           | ~org-capture~                 | Open the capture dispatcher                                   |
+| =C-c C=           | ~me/calendar~                 | Weekly time-block calendar of the agenda files (calfw)        |
+| =C-c g=           | ~org-gcal-sync~               | Pull/push Google Calendar events (first run: browser OAuth)   |
+| =C-c G=           | ~org-gcal-post-at-point~      | Publish the Org entry at point to its Google calendar         |
+| =C-c e=           | ~me/open-config~              | Open =init.el=                                                  |
+| =C-c p f/p/b/s/r= | project.el                  | find-file / switch-project / buffer / ripgrep / query-replace |
+| =C-c n l/f/g/i/c= | org-roam                    | buffer toggle / find / graph / insert / capture               |
+| =M-;=             | ~comment-or-uncomment-region~ | Toggle comment on region/line                                 |
+| =C-g=             | ~me/keyboard-quit-dwim~       | Quits the minibuffer even when it's unfocused                 |
+| =C-x w u= / =C-x w r= | ~winner-undo~ / ~winner-redo~ | Undo / redo window layout changes (repeatable: =C-x w u u u=) |
+
+
+* License
+
+MIT — see =LICENSE=.

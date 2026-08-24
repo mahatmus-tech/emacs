@@ -1,0 +1,49 @@
+# straight.el — package clones/builds, regenerated on first launch
+/straight/
+
+# native-compilation cache
+/eln-cache/
+
+# no-littering runtime state: history, backups, sessions, per-package caches
+/var/
+
+# built-in package.el leftovers — unused, package-enable-at-startup is nil
+/elpa/
+
+# session/editor cruft
+/auto-save-list/
+*~
+*.elc
+
+# personal runtime state regenerated on first use
+/history
+/places
+/projects
+/frame-colors.el
+/.org-generic-id-locations
+
+# tree-sitter grammars — compiled per machine, reinstalled on demand
+/tree-sitter/
+
+# Emacs tutorial (C-h t) progress state
+/tutorial/
+
+# misc runtime dirs created by built-in packages
+/etc/
+/transient/
+
+# external package cloned manually — fetch it yourself, see README
+/local-packages/omarchy.el/
+
+# personal/employer-branded export theme — add your own folder here, see README
+/ox-html-themes/work/
+
+# personal/employer-specific overrides — see local.el.example and README
+/local.el
+
+# AI-tooling config, versioned separately elsewhere
+/.claude/
+/openspec/
+
+# stray local backups — not part of the config
+/emacs.d.zip
