@@ -119,6 +119,7 @@
                  (not (string-prefix-p "unspecified" bg))  ;> skip terminal pseudo-colors
                  (not (string-prefix-p "unspecified" fg)))
         (with-temp-file file
+          (insert ";; -*- lexical-binding: t; -*-\n")                 ;. [fix]: Emacs 31 warns on `load' without this cookie
           (insert (format "(add-to-list 'default-frame-alist '(background-color . %S))\n" bg))
           (insert (format "(add-to-list 'default-frame-alist '(foreground-color . %S))\n" fg))
           (when cursor (insert (format "(add-to-list 'default-frame-alist '(cursor-color     . %S))\n" cursor)))
@@ -145,14 +146,18 @@
 Shows a Magit status buffer with a Dirvish side panel rooted at the repo.
 Returns the tabspace name."
   (let* ((root (file-name-as-directory (expand-file-name repo-dir)))
-         (name (file-name-nondirectory (directory-file-name root))))
+         (name (file-name-nondirectory (directory-file-name root)))
+         (new? (not (member name (tabspaces--list-tabspaces)))))      ;. a fresh tab still carries the buffer inherited from tab-new below
     (when (file-directory-p root)
       (tabspaces-switch-or-create-workspace name)
       (delete-other-windows)                                         ;> the side window survives: no-delete-other-windows
       (let ((default-directory root))
         (magit-status-setup-buffer root)                             ;> main window
         (save-selected-window                                        ;> dirvish-side selects its window; keep focus on magit
-          (dirvish-side root))))                                     ;. sessions are per tab (dirvish--scopes), so each workspace keeps its own panel
+          (dirvish-side root)))                                      ;. sessions are per tab (dirvish--scopes), so each workspace keeps its own panel
+      (when new?                                                      ;. [fix]: tabspaces--tab-post-open-function resets the buffer-list right after
+        (tabspaces-reset-buffer-list)))                               ;. tab-new, before magit/dirvish-side replace the inherited buffer — that
+                                                                      ;. buffer stays "local" forever unless the reset runs again once we're done
     name))
 
 (defun me/setup-workspaces ()                                         ;> personal workspace main function
@@ -210,6 +215,26 @@ where `dirvish-side' only yields a plain dired buffer (no session, no data, sent
     (setq me/tabspaces--restored-side-panels nil)
     (let ((first (cadr (car tabspaces--session-list))))               ;. restore ends on the last saved tab; C-c w lands on the first repo
       (when (member first tabs) (tab-bar-switch-to-tab first)))))
+
+(defun me/dirvish-side-resync (win file)                             ;> deferred half of me/dirvish-side-auto-jump-defer — see there
+  "Reposition WIN on FILE and refresh the panel, called from the command loop."
+  (when (window-live-p win)
+    (with-selected-window win
+      (if dirvish-side-auto-expand
+          (dirvish-subtree-expand-to file)
+        (dired-goto-file file))
+      (dirvish--redisplay))))
+
+(defun me/dirvish-side-auto-jump-defer (&rest _)                     ;> [fix]: dirvish-side--auto-jump moves point before the command loop resumes
+  "Schedule `me/dirvish-side-resync' for the file just opened, deferred to the command loop.
+`:after' advice on `dirvish-side--auto-jump' (init.el, dirvish :config).
+Run from `buffer-list-update-hook', that function's own goto/expand leaves the
+panel's point on the right file but its displayed index/highlight goes stale —
+same class of bug as the after-init-hook case in gotchas.md (dirvish-side ops
+run synchronously outside the command loop don't fully take effect); same fix."
+  (when-let* ((win (dirvish-side--session-visible-p))
+              (file buffer-file-name))
+    (run-at-time 0 nil #'me/dirvish-side-resync win file)))
 
 (defun me/tabspaces-skip-terminal-record (buffer)                     ;> session save: terminals (eat, ghostel, claude) would only come back as empty shells
   "Return a no-op session record for BUFFER when it is a terminal, else nil."
@@ -443,7 +468,7 @@ than picking an arbitrary key."
        (let* ((src (match-string 1 whole))
               (file (and (not (string-match-p "\\`\\(https?:\\|data:\\)" src))
                          (expand-file-name src))))
-         (if-let ((data-uri (and file (me/org-html--file-to-data-uri file))))
+         (if-let* ((data-uri (and file (me/org-html--file-to-data-uri file))))
              (format "<img src=\"%s\"" data-uri)
            whole)))
      text)))
@@ -458,6 +483,6 @@ than picking an arbitrary key."
            (logo  (cdr theme)))
       (setq org-html-head (or (me/org-html--css-block css) ""))
       (setq org-html-postamble
-            (if-let ((data-uri (and logo (me/org-html--file-to-data-uri logo))))
+            (if-let* ((data-uri (and logo (me/org-html--file-to-data-uri logo))))
                 (format "<img src=\"%s\" alt=\"%s\">" data-uri name)
               nil)))))

@@ -344,8 +344,28 @@
         dirvish-side-attributes
         '(vc-state nerd-icons collapse file-size))
   (setq dirvish-large-directory-threshold 20000)                      ;. open large directory (over 20000 files) asynchronously with `fd' command
+  (defun me/dirvish-side-open-or-expand ()                            ;> RET in the side panel expands directories in place, like TAB
+    "In a dirvish-side session, toggle the subtree at point if it is a
+directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
+    (interactive)
+    (if-let* ((dv (dirvish-curr))
+              ((eq (dv-type dv) 'side))
+              (file (dired-get-filename nil t))
+              ((file-directory-p file)))
+        (dirvish-subtree-toggle)
+      (dired-find-file)))
+  (defun me/dirvish-mouse-open-or-expand (event)                      ;> mouse version of `me/dirvish-side-open-or-expand'
+    "Move point to EVENT's position, then run `me/dirvish-side-open-or-expand'."
+    (interactive "e")
+    (mouse-set-point event)
+    (me/dirvish-side-open-or-expand))
+  (advice-add 'dirvish-side-root-conf :after                          ;> [fix]: no room for the gutter in a 35-col sidebar
+              (lambda (buffer)
+                (with-current-buffer buffer (display-line-numbers-mode -1))))
+  (advice-add 'dirvish-side--auto-jump :after #'me/dirvish-side-auto-jump-defer);. [fix]: panel index goes stale after find-file — see custom.el
   :bind ; Bind `dirvish-fd|dirvish-side|dirvish-dwim' as you see fit
   (("C-c f" . dirvish)
+   ("C-c F" . dirvish-side)                                           ;. focus the visible side panel from any window; toggles it away from inside
    :map dirvish-mode-map                                              ;. Dirvish inherits `dired-mode-map'
    (";"   . dired-up-directory)                                       ;. So you can adjust `dired' bindings here
    ("?"   . dirvish-dispatch)                                         ;. [?] a helpful cheatsheet
@@ -361,6 +381,8 @@
    ("N"   . dirvish-narrow)
    ("^"   . dirvish-history-last)
    ("TAB" . dirvish-subtree-toggle)
+   ("RET" . me/dirvish-side-open-or-expand)                           ;. in the side panel only: expand directories in place instead of a new dired buffer
+   ("<mouse-1>" . me/dirvish-mouse-open-or-expand)                    ;. same, for a mouse click
    ("M-f" . dirvish-history-go-forward)
    ("M-b" . dirvish-history-go-backward)
    ("M-e" . dirvish-emerge-menu)))
@@ -400,7 +422,8 @@
   (tabspaces-session-auto-restore nil)                                ;. saved on exit (kill-emacs-hook) to var/tabspaces-session.eld, restored only on demand (C-c W):
                                                                       ;. Emacs also opens one-off system files — those launches must not drag the last session in
   (tabspaces-session-project-session-store nil)                       ;. one global file — 'project (default) would drop .<repo>-tabspaces-session.el inside every repo
-  :bind ("C-c W" . tabspaces-restore-session)                         ;. C-c w builds the default workspaces, C-c W brings back last session's tabs
+  :bind (("C-c W" . tabspaces-restore-session)                        ;. C-c w builds the default workspaces, C-c W brings back last session's tabs
+         ("C-x t 0" . tabspaces-kill-buffers-close-workspace))        ;. isolated tabspace: closing it kills its exclusive buffers too
   :config
   (tabspaces-register-buffer-kind 'skip                               ;. eat/ghostel/claude terminals: saved as no-ops, never restored
                                   #'me/tabspaces-skip-terminal-record #'ignore)
