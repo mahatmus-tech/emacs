@@ -872,7 +872,11 @@ directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
   :after org
   :demand t                                                           ;. load immediately after org (required to register the babel backend)
   :custom
-  (ob-mermaid-cli-path "/usr/bin/mmdc")
+  (ob-mermaid-cli-path "/home/mahatmus-arch/.local/share/mise/installs/node/25.9.0/bin/mmdc") ;. [fix]: mermaid-cli 11.x strips spaces
+                                                                       ;. inside multi-word node labels under htmlLabels:false (verified
+                                                                       ;. regression vs 10.9.1); pinned via `npm install -g
+                                                                       ;. @mermaid-js/mermaid-cli@10.9.1`, doesn't touch the
+                                                                       ;. pacman-owned /usr/bin/mmdc (11.16.0-2)
   (ob-mermaid-default-config-file "~/.emacs.d/mermaid-config-emacs.json")
   :config
   (setq org-babel-default-header-args:mermaid                         ;. theme, background, and system chromium (mmdc couldn't find its own chrome-headless-shell)
