@@ -20,9 +20,10 @@
 ;;; ------------------------------------------------------------------- Bootstrap
 ;;;; -                                                                   Loading
 (load (expand-file-name "custom.el" user-emacs-directory))            ;> custom functions
-(load (expand-file-name "local.el" user-emacs-directory)               ;> gitignored — real personal/employer values override the
+(load (expand-file-name "local.el" user-emacs-directory)              ;> gitignored — real personal/employer values override the
       'noerror 'nomessage)                                            ;. generic defaults from custom.el; absence is fine, see README
-(setq custom-file (expand-file-name "custom-set.el" user-emacs-directory)) ;> keep the Custom-generated block out of init.el
+(setq custom-file (expand-file-name                                   ;> keep the Custom-generated block out of init.el
+                   "custom-set.el" user-emacs-directory))
 (load custom-file 'noerror 'nomessage)                                ;> safe-local-variable-values etc. — versioned, hence not in no-littering etc/
 (add-hook 'emacs-startup-hook                                         ;> restore file-name-handler-alist after startup
           (lambda ()
@@ -342,7 +343,7 @@
   (setq dirvish-attributes           ; The order *MATTERS* for some attributes
         '(vc-state subtree-state nerd-icons collapse git-msg file-time file-size)
         dirvish-side-attributes
-        '(vc-state nerd-icons collapse file-size))
+        '(vc-state nerd-icons collapse))
   (setq dirvish-large-directory-threshold 20000)                      ;. open large directory (over 20000 files) asynchronously with `fd' command
   (defun me/dirvish-side-open-or-expand ()                            ;> RET in the side panel expands directories in place, like TAB
     "In a dirvish-side session, toggle the subtree at point if it is a
@@ -355,10 +356,18 @@ directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
         (dirvish-subtree-toggle)
       (dired-find-file)))
   (defun me/dirvish-mouse-open-or-expand (event)                      ;> mouse version of `me/dirvish-side-open-or-expand'
-    "Move point to EVENT's position, then run `me/dirvish-side-open-or-expand'."
+    "Move point to EVENT's position, then run `me/dirvish-side-open-or-expand'.
+Outside a side session, fall back to `dired-mouse-find-file-other-window'
+instead: dired's `mouse-face' + `[follow-link]' convention silently turns
+a real mouse-1 click on a filename into a mouse-2 event, so this is the
+handler that actually runs for a click there, and fullscreen dirvish's
+click-opens-in-other-window behavior must stay unaffected."
     (interactive "e")
     (mouse-set-point event)
-    (me/dirvish-side-open-or-expand))
+    (if-let* ((dv (dirvish-curr))
+              ((eq (dv-type dv) 'side)))
+        (me/dirvish-side-open-or-expand)
+      (dired-mouse-find-file-other-window event)))
   (advice-add 'dirvish-side-root-conf :after                          ;> [fix]: no room for the gutter in a 35-col sidebar
               (lambda (buffer)
                 (with-current-buffer buffer (display-line-numbers-mode -1))))
@@ -383,6 +392,7 @@ directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
    ("TAB" . dirvish-subtree-toggle)
    ("RET" . me/dirvish-side-open-or-expand)                           ;. in the side panel only: expand directories in place instead of a new dired buffer
    ("<mouse-1>" . me/dirvish-mouse-open-or-expand)                    ;. same, for a mouse click
+   ("<mouse-2>" . me/dirvish-mouse-open-or-expand)                    ;. [fix]: dired's follow-link convention turns a real mouse-1 click on a filename into mouse-2 — see the function's docstring
    ("M-f" . dirvish-history-go-forward)
    ("M-b" . dirvish-history-go-backward)
    ("M-e" . dirvish-emerge-menu)))
@@ -815,7 +825,10 @@ directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
   (calfw-blocks-initial-visible-time '(7 0)))                         ;. scroll so the day starts at 07:00 (hours outside 9–17 shrink to one line)
 
 (use-package org-gcal                                                 ;> two-way Google Calendar ↔ org: events land in gcal-*.org, so C-c a and C-c C show them
-  :commands (org-gcal-sync org-gcal-fetch org-gcal-post-at-point org-gcal-delete-at-point)
+  :commands (org-gcal-sync
+             org-gcal-fetch
+             org-gcal-post-at-point
+             org-gcal-delete-at-point)
   :bind (("C-c g" . org-gcal-sync)                                    ;. pull + push managed entries; never automatic — the first run per calendar opens the browser for OAuth
          ("C-c G" . org-gcal-post-at-point))                          ;. publish the org entry at point (a captured "e" event) to its calendar
   :init
