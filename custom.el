@@ -135,6 +135,15 @@
   (tab-bar-new-tab)
   (scratch-buffer))
 ;;; ------------------------------------------------------------------- Workspace
+(defun me/tab-bar-refresh-focus-highlight (&rest _)                   ;> border on the focused tab tracks the active theme
+  "Set `tab-bar-tab's box border color from the active `mode-line' face.
+Wired in init.el to run once at startup and again on every theme change,
+so the border always matches whichever theme is active — regardless of
+which theme package (or none) applied it."
+  (set-face-attribute 'tab-bar-tab nil
+                       :box (list :line-width 2
+                                  :color (face-attribute 'mode-line :background nil t))))
+
 (defvar me/workspace-default-repos                                    ;> repos auto-opened by me/setup-workspaces
   '("~/repos/dotfiles/"))                                              ;. add your own repos in local.el (gitignored, see local.el.example)
 
