@@ -157,6 +157,9 @@
   (require 'omarchy-themes) ; register bundled themes
   (omarchy-init))
 
+(add-hook 'enable-theme-functions #'me/tab-bar-refresh-focus-highlight) ;> tab-bar focus border tracks any theme (any package, or none)
+(add-hook 'after-init-hook #'me/tab-bar-refresh-focus-highlight)      ;. catches whatever theme startup already applied
+
 ;;;; -                                                                   Modeline
 (use-package doom-modeline                                            ;> mode-line inspired by minimalism design
   :hook (after-init . doom-modeline-mode)
