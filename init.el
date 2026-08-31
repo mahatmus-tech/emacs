@@ -179,9 +179,12 @@
   :hook (emacs-lisp-mode . highlight-defined-mode))
 ;;; ------------------------------------------------------------------- Editing
 ;;;; -                                                                   Settings
-(setq show-paren-context-when-offscreen 'child-frame)                 ;> [fix]: show matching paren's line in a
-                                                                      ;. popup when it's off-screen, so scrolling
-                                                                      ;. to see it (moving point) isn't needed
+(setq show-paren-context-when-offscreen 'overlay)                     ;> [fix]: show matching paren's line in an
+                                                                      ;. overlay when it's off-screen, so scrolling
+                                                                      ;. to see it (moving point) isn't needed.
+                                                                      ;. 'child-frame crashed Emacs (GTK widget-
+                                                                      ;. disposal bug) — see openspec change
+                                                                      ;. fix-show-paren-child-frame-crash
 (add-hook 'after-init-hook #'electric-pair-mode)                      ;> auto-close delimiters
 (add-hook 'after-init-hook #'delete-selection-mode)                   ;> delete selection on type
 (setq-default tab-width 2)                                            ;> default tab display width
