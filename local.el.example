@@ -39,8 +39,9 @@
 ;; Extra HTML export theme(s), appended to the tracked "default" theme —
 ;; same shape as `me/ox-html-theme-alist' entries: name -> (css-file .
 ;; postamble-logo-file-or-nil). Put the theme's own folder under
-;; ox-html-themes/<name>/ (already gitignored for any name other than
-;; "default").
+;; ox-html-themes/<name>/ (any name other than "default" is gitignored
+;; automatically) — a real folder or a symlink to one elsewhere (e.g. a
+;; personal dotfiles repo) both work, see README.
 (setq me/ox-html-theme-alist
       (append me/ox-html-theme-alist
               `(("work" . (,(expand-file-name "work/style.css" me/ox-html-themes-dir) .
