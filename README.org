@@ -36,7 +36,14 @@ Copy =local.el.example= to =local.el= and fill in what you use:
   cp local.el.example local.el
 #+end_src
 
-=local.el= loads right after =custom.el=, before any package is fetched. If it doesn't exist, Emacs starts fine — the features it would configure (Google Calendar sync, a forge/GitLab account, extra org-roam capture targets, an extra HTML export theme, extra workspace repos) are simply absent rather than erroring. See =local.el.example= for the full list of overridable variables and their expected shape.
+If you keep a separate personal dotfiles repo, you can instead store the real =local.el= (and any personal =ox-html-themes/<name>/= folder) there and symlink them into =~/.emacs.d=, so nothing personal ever physically sits inside this repo's working tree:
+
+#+begin_src shell
+  ln -s ~/path/to/your-dotfiles/local.el ~/.emacs.d/local.el
+  ln -s ~/path/to/your-dotfiles/ox-html-themes/your-theme ~/.emacs.d/ox-html-themes/your-theme
+#+end_src
+
+Either way works the same at load time — =local.el= loads right after =custom.el=, before any package is fetched. If it doesn't exist, Emacs starts fine — the features it would configure (Google Calendar sync, a forge/GitLab account, extra org-roam capture targets, an extra HTML export theme, extra workspace repos) are simply absent rather than erroring. See =local.el.example= for the full list of overridable variables and their expected shape.
 
 A couple of other things still carry *my own* paths as working examples — search for these and adjust to yours:
 

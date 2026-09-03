@@ -35,8 +35,10 @@
 # external package cloned manually — fetch it yourself, see README
 /local-packages/omarchy.el/
 
-# personal/employer-branded export theme — add your own folder here, see README
-/ox-html-themes/work/
+# personal/employer-branded export theme(s) — add your own folder (or a
+# symlink to one) here, any name but "default", see README
+/ox-html-themes/*
+!/ox-html-themes/default/
 
 # personal/employer-specific overrides — see local.el.example and README
 /local.el
