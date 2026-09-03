@@ -283,6 +283,23 @@ exists, rename a pristine startup tab, or open a fresh tab next to whatever is b
                (lambda ()
                  (claude-code-ide-send-prompt "/code-review"))))
 
+(defun me/org-roam-capture-finalize ()                                ;> :finalize for org-roam-capture-templates, see init.el
+  "Switch to the captured note and refresh `dirvish-side' to track it.
+`:jump-to-captured' alone jumps too late — after `org-capture-after-finalize-hook'
+already ran with the pre-capture buffer restored — so `dirvish-side-follow-mode'
+never sees the new file; do the switch here instead. `dired-auto-revert-buffer'
+is nil, so even a correct jump reuses a stale cached listing for the target
+directory (missing the just-created file) unless reverted by hand."
+  (let ((target (org-capture-get :buffer)))
+    (switch-to-buffer target)
+    (when (fboundp 'dirvish-side--auto-jump)
+      (dirvish-side--auto-jump)
+      (when-let* ((win (dirvish-side--session-visible-p))
+                  (file (buffer-file-name target)))
+        (with-selected-window win
+          (revert-buffer nil t)
+          (dired-goto-file file))))))
+
 ;;; ------------------------------------------------------------------- Org
 (defvar me/org-agenda-categories                                      ;> (key label file has-agenda-view face) — drives capture templates, refile targets, per-category agenda views,
   '(("w" "Work"  "~/repos/dotfiles/org/agenda/work.org"  t   font-lock-function-name-face) ;. and the calendar source color (a face, so it follows the theme)
