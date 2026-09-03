@@ -854,23 +854,27 @@ click-opens-in-other-window behavior must stay unaffected."
    (concat "${title:*} " (propertize "${tags:40}" 'face 'org-tag)))
   (org-roam-capture-templates                                        ;. work-specific entries (employer name/repo) live in me/roam-work-templates, local.el
    (append
-    '(("d" "Default" plain "%?"
-       :target (file+head "${slug}.org"
+    '(("d" "Default" plain "%?"                                        ;. :finalize me/org-roam-capture-finalize (custom.el) lands
+       :target (file+head "resources/${slug}.org"                     ;. in the new note and refreshes dirvish-side — plain
                           ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n#+filetags: \n#+date: %<%Y-%m-%d>\n")
-       :unnarrowed t)
+       :unnarrowed t                                                   ;. :jump-to-captured alone jumps too late for
+       :finalize me/org-roam-capture-finalize)                        ;. dirvish-side-follow-mode to pick it up
       ("l" "Aprendizado" plain "%?"
-       :target (file+head "learn/${slug}.org"
+       :target (file+head "resources/learn/${slug}.org"
                           ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n#+filetags: :learning:\n#+date: %<%Y-%m-%d>\n")
-       :unnarrowed t)
+       :unnarrowed t
+       :finalize me/org-roam-capture-finalize)
       ("p" "Pessoal" plain "%?"
-       :target (file+head "home/${slug}.org"
+       :target (file+head "resources/home/${slug}.org"
                           ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n#+filetags: :personal:\n#+date: %<%Y-%m-%d>\n")
-       :unnarrowed t)
+       :unnarrowed t
+       :finalize me/org-roam-capture-finalize)
       ("r" "Receita" plain
        "* Ingredientes\n%?\n\n* Modo de preparo\n"
-       :target (file+head "home/cooking/${slug}.org"
+       :target (file+head "resources/home/cooking/${slug}.org"
                           ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n#+filetags: :personal:cooking:\n#+date: %<%Y-%m-%d>\n")
-       :unnarrowed t))
+       :unnarrowed t
+       :finalize me/org-roam-capture-finalize))
     me/roam-work-templates))
   :bind (("C-c n l" . org-roam-buffer-toggle)
          ("C-c n f" . org-roam-node-find)
