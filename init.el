@@ -4,19 +4,22 @@
 ;; TAB    on heading  → cycle visibility (hide → children → expand)
 ;; S-TAB  on heading  → collapse to heading only
 ;; M-g o              → jump to any heading by name (consult-outline)
-;; C-c C-t            → expand only headinds
+;; C-c C-t            → expand only headings
 ;; C-c C-y            → collapse all (back to open-file state)
 ;; C-c w              → open a tab per repo in me/workspace-default-repos
 ;; C-c e              → open init.el (this file)
 ;;;; -                                                                   Conventions
 ;; ;;; -----  section  (level 1, shown collapsed on open)
 ;; ;;;; -      subsection  (level 2)
-;; ; →      inline comment at column 70 — explains WHY, not what
+;; ;>       inline comment at column 70 — explains WHY, not what
+;; ;.       continuation of the line above, or a sub-item inside a block
 ;; M-;      comment or uncomment region (rebound below, see Keybinds)
+;; functions live in custom.el (loaded first); init.el only wires them
 ;;;; -                                                                   Packages
 ;; :straight (not :ensure) — all packages managed by straight.el
 ;; :demand t   load immediately, overrides use-package-always-defer t
-;; :after X    load only after X is loaded (safe lazy dependency)
+;; :after X    loads after X, but only with a :hook/:bind/:commands/:demand
+;;             trigger — :after alone never loads anything under always-defer
 ;;; ------------------------------------------------------------------- Bootstrap
 ;;;; -                                                                   Loading
 (load (expand-file-name "custom.el" user-emacs-directory))            ;> custom functions
@@ -27,7 +30,7 @@
 (load custom-file 'noerror 'nomessage)                                ;> safe-local-variable-values etc. — versioned, hence not in no-littering etc/
 (add-hook 'emacs-startup-hook                                         ;> restore file-name-handler-alist after startup
           (lambda ()
-            (setq gc-cons-threshold (* 16 1024 1024)) ;; 16MB — post-startup
+            (setq gc-cons-threshold (* 16 1024 1024))                 ;. 16MB — sane value until gcmh takes over (after-init)
             (setq file-name-handler-alist me/file-name-handler-alist-backup)))
 ;;;; -                                                                   Package Manager
 (defvar bootstrap-version)
@@ -73,8 +76,8 @@
 (setq use-short-answers t)                                            ;> accept y/n instead of yes/no
 (set-charset-priority 'unicode)                                       ;> set UTF-8 as default
 (prefer-coding-system 'utf-8-unix)                                    ;> set UTF-8 as default
-(dolist (target '(STRING TEXT COMPOUND_TEXT text/plain))              ;> [fix]: clipboard enconding between (emacs-wayland and chrome-wayland).
-  (setq selection-converter-alist                                     ;. It drops ambiguous ICCCM targets (Latin-1)
+(dolist (target '(STRING TEXT COMPOUND_TEXT text/plain))              ;> [fix]: clipboard encoding between emacs-wayland and chrome-wayland
+  (setq selection-converter-alist                                     ;. drops the ambiguous ICCCM targets (Latin-1)
         (assq-delete-all target selection-converter-alist)))          ;. so Chrome can't grab the wrong (non-UTF-8) one
 ;;;; -                                                                   UI
 (blink-cursor-mode -1)                                                ;> Steady cursor
@@ -90,8 +93,8 @@
 (setq scroll-conservatively 101)                                      ;> smooth scrolling, no jump
 (setq scroll-preserve-screen-position t)                              ;> keep the point in the same place while scrolling
 (setq mouse-wheel-progressive-speed nil)                              ;> [fix]: cursor jumping with mouse-wheel scroll
-                                                                       ;. constant scroll amount per notch, no
-                                                                       ;. acceleration triggering point relocation
+                                                                      ;. constant scroll amount per notch, no
+                                                                      ;. acceleration triggering point relocation
 (setopt mouse-wheel-tilt-scroll t)                                    ;> Enable horizontal scrolling
 (setopt mouse-wheel-flip-direction t)                                 ;> Enable horizontal scrolling
 ;;;; -                                                                   Windows
@@ -148,7 +151,7 @@
 
 (use-package omarchy                                                  ;> omarchy visual themes
   :straight nil                                                       ;. use just for omarchy!
-  :load-path "local-packages/omarchy.el"                              ;. directory ~/.emacs.d/omarchy.el/ added to load-path
+  :load-path "local-packages/omarchy.el"                              ;. the clone's directory (relative to user-emacs-directory), not a file
   :demand t
   :init
   (setq omarchy-default-theme 'modus-vivendi
@@ -246,7 +249,7 @@
          (after-init . corfu-history-mode)                            ;. sort candidates by history; registers corfu-history with savehist itself
          (after-init . corfu-popupinfo-mode)))                        ;. doc/signature popup beside the candidate (M-h toggles)
 
-(use-package orderless                                                ;> completion style with flexible candidate filtering .
+(use-package orderless                                                ;> completion style with flexible candidate filtering
   :custom
   (completion-styles '(orderless basic))
   (completion-category-overrides '((file (styles partial-completion))))
@@ -336,14 +339,8 @@
   :custom
   (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
    '(("h" "~/"                          "Home")
-     ("d" "~/Downloads/"                "Downloads")
-;;     ("m" "/mnt/"                       "Drives")
-;;     ("s" "/ssh:my-remote-server")      "SSH server"
-;;     ("e" "/sudo:root@localhost:/etc")  "Modify program settings"
-;;     ("t" "~/.local/share/Trash/files/" "TrashCan")
-     ))
+     ("d" "~/Downloads/"                "Downloads")))
   :config
-  ;; (dirvish-peek-mode)             ; Preview files in minibuffer
   (setq dirvish-mode-line-format
         '(:left (sort symlink) :right (omit yank index)))
   (setq dirvish-attributes           ; The order *MATTERS* for some attributes
@@ -351,29 +348,6 @@
         dirvish-side-attributes
         '(vc-state nerd-icons collapse))
   (setq dirvish-large-directory-threshold 20000)                      ;. open large directory (over 20000 files) asynchronously with `fd' command
-  (defun me/dirvish-side-open-or-expand ()                            ;> RET in the side panel expands directories in place, like TAB
-    "In a dirvish-side session, toggle the subtree at point if it is a
-directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
-    (interactive)
-    (if-let* ((dv (dirvish-curr))
-              ((eq (dv-type dv) 'side))
-              (file (dired-get-filename nil t))
-              ((file-directory-p file)))
-        (dirvish-subtree-toggle)
-      (dired-find-file)))
-  (defun me/dirvish-mouse-open-or-expand (event)                      ;> mouse version of `me/dirvish-side-open-or-expand'
-    "Move point to EVENT's position, then run `me/dirvish-side-open-or-expand'.
-Outside a side session, fall back to `dired-mouse-find-file-other-window'
-instead: dired's `mouse-face' + `[follow-link]' convention silently turns
-a real mouse-1 click on a filename into a mouse-2 event, so this is the
-handler that actually runs for a click there, and fullscreen dirvish's
-click-opens-in-other-window behavior must stay unaffected."
-    (interactive "e")
-    (mouse-set-point event)
-    (if-let* ((dv (dirvish-curr))
-              ((eq (dv-type dv) 'side)))
-        (me/dirvish-side-open-or-expand)
-      (dired-mouse-find-file-other-window event)))
   (advice-add 'dirvish-side-root-conf :after                          ;> [fix]: no room for the gutter in a 35-col sidebar
               (lambda (buffer)
                 (with-current-buffer buffer (display-line-numbers-mode -1))))
@@ -387,7 +361,7 @@ click-opens-in-other-window behavior must stay unaffected."
    ("a"   . dirvish-setup-menu)                                       ;. [a]ttributes settings:`t' toggles mtime, `f' toggles fullframe, etc.
    ("f"   . dirvish-file-info-menu)                                   ;. [f]ile info
    ("o"   . dirvish-quick-access)                                     ;. [o]pen `dirvish-quick-access-entries'
-   ("s"   . dirvish-quicksort)                                        ;. [s]ort flie list
+   ("s"   . dirvish-quicksort)                                        ;. [s]ort file list
    ("r"   . dirvish-history-jump)                                     ;. [r]ecent visited
    ("l"   . dirvish-ls-switches-menu)                                 ;. [l]s command flags
    ("v"   . dirvish-vc-menu)                                          ;. [v]ersion control commands
@@ -396,7 +370,7 @@ click-opens-in-other-window behavior must stay unaffected."
    ("N"   . dirvish-narrow)
    ("^"   . dirvish-history-last)
    ("TAB" . dirvish-subtree-toggle)
-   ("RET" . me/dirvish-side-open-or-expand)                           ;. in the side panel only: expand directories in place instead of a new dired buffer
+   ("RET" . me/dirvish-side-open-or-expand)                           ;. in the side panel only: expand directories in place instead of a new dired buffer (custom.el)
    ("<mouse-1>" . me/dirvish-mouse-open-or-expand)                    ;. same, for a mouse click
    ("<mouse-2>" . me/dirvish-mouse-open-or-expand)                    ;. [fix]: dired's follow-link convention turns a real mouse-1 click on a filename into mouse-2 — see the function's docstring
    ("M-f" . dirvish-history-go-forward)
@@ -515,8 +489,6 @@ click-opens-in-other-window behavior must stay unaffected."
   ;; (setq magit-refresh-status-buffer nil)                            ; disabled: perf win not worth losing live status
   )
 
-
-
 (use-package forge                                                    ;> merge requests and issues via magit (gitlab)
   :after magit
   :custom
@@ -530,21 +502,8 @@ click-opens-in-other-window behavior must stay unaffected."
   :custom
   (pr-review-forges-alist '(("gitlab.com" . (gitlab "gitlab.com/api/v4" nil))))
   (pr-review-ghub-auth-name 'forge)                                   ;. reuses the same ~/.authinfo entry as forge (any auth-source login works)
-  :config
-  (defun my/pr-review-forge-at-point ()
-    "Open the current forge pull request in pr-review."
-    (interactive)
-    (let ((topic (forge-current-topic)))
-      (if (cl-typep topic 'forge-pullreq)
-          (let* ((repo   (forge-get-repository topic))
-                 (host   (oref repo githost))
-                 (owner  (oref repo owner))
-                 (name   (oref repo name))
-                 (number (oref topic number)))
-            (pr-review-open host owner name number))
-        (call-interactively #'pr-review))))
   :bind (:map forge-topic-mode-map
-         ("C-c C-r" . my/pr-review-forge-at-point)))
+         ("C-c C-r" . my/pr-review-forge-at-point)))                  ;. custom.el (Version Control): the topic at point, or prompt outside one
 
 (use-package ediff                                                    ;> ediff window fix for wayland
   :straight (:type built-in)
@@ -652,9 +611,10 @@ click-opens-in-other-window behavior must stay unaffected."
   :mode "\\.ya?ml\\'")                                                ;. the mode only registers itself on load (never, under always-defer); docker-compose-mode was dropped —
                                                                       ;. its yaml-mode parent and this entry fought over auto-mode-alist, and its capf only knew compose v1–v3 keys
 ;;;; -                                                                   Awk
-(add-hook 'awk-mode-hook (lambda ()                                        ;> awk mode
-                           (setq tab-width 2)
-                           (setq indent-tabs-mode nil)))
+(add-hook 'awk-mode-hook                                              ;> awk: 2-space indent with spaces, like everything else here
+          (lambda ()
+            (setq tab-width 2)
+            (setq indent-tabs-mode nil)))
 ;;;; -                                                                   Web
 (setq-default js-indent-level 2)                                      ;> javascript indent width
 (setq-default css-indent-offset 2)                                    ;> css indent width
@@ -672,7 +632,7 @@ click-opens-in-other-window behavior must stay unaffected."
   ;; Edit settings
   (org-auto-align-tags nil)
   (org-tags-column 0)
-  (org-catch-invisible-edits 'show-and-error)
+  (org-fold-catch-invisible-edits 'show-and-error)                    ;. current name since Org 9.6; the pre-fold name is an obsolete alias
   (org-special-ctrl-a/e t)
   (org-insert-heading-respect-content t)
   ;; Styling
@@ -684,7 +644,7 @@ click-opens-in-other-window behavior must stay unaffected."
   (org-agenda-tags-column 0)
   (org-agenda-show-tags t)
   ;; Files
-  (org-directory "~/repos/dotfiles/org")
+  (org-directory me/org-directory)                                    ;. custom.el default ~/org; the real root comes from local.el
   ;; TODO keywords — Todoist-like workflow
   (org-todo-keywords
    '((sequence "INBOX(i)" "TODO(t)" "NEXT(n)" "WAIT(w@/!)" "|" "DONE(d!)" "CANCELED(c@)")))
@@ -732,12 +692,12 @@ click-opens-in-other-window behavior must stay unaffected."
   ;; me/gcal-capture-entries) and one per me/org-agenda-categories item appended
   (org-capture-templates
    (append
-    '(("i" "Inbox — quick add" entry
-       (file "~/repos/dotfiles/org/agenda/inbox.org")
+    `(("i" "Inbox — quick add" entry
+       (file ,(me/org-file "agenda/inbox.org"))                        ;. a (file …) target takes a string, not a form — hence the backquote
        "* INBOX %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
        :empty-lines 1)
       ("t" "Task with deadline" entry
-       (file "~/repos/dotfiles/org/agenda/inbox.org")
+       (file ,(me/org-file "agenda/inbox.org"))
        "* INBOX %?\nDEADLINE: %^{Deadline}t\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
        :empty-lines 1))
     (me/gcal-capture-entries)                                        ;. org-gcal's layout: calendar-id property + :org-gcal: drawer; C-c G on it publishes
@@ -781,9 +741,10 @@ click-opens-in-other-window behavior must stay unaffected."
                (org-agenda-skip-function
                 '(org-agenda-skip-entry-if 'notregexp "\\[#A\\]")))))))))
   :config
-  (setq org-agenda-files
-        (when (file-directory-p "~/repos/dotfiles/org/agenda")
-          (directory-files-recursively "~/repos/dotfiles/org/agenda" "\\`[^#].*\\.org\\'"))))
+  (setq org-agenda-files                                              ;. every .org under agenda/ (gcal-*.org included); nil when the root doesn't exist yet
+        (let ((dir (me/org-file "agenda")))
+          (when (file-directory-p dir)
+            (directory-files-recursively dir "\\`[^#].*\\.org\\'")))))
 
 ;;;; -                                                                   Packages
 (use-package org-modern                                               ;> modern looks for Org buffers
@@ -849,7 +810,7 @@ click-opens-in-other-window behavior must stay unaffected."
 (use-package org-roam                                                 ;> database abstraction layer for Org
   :after org
   :custom
-  (org-roam-directory (file-truename "~/repos/dotfiles/org/roam"))
+  (org-roam-directory (file-truename (me/org-file "roam")))           ;. roam/ under the org root (me/org-directory, set in local.el)
   (org-roam-node-display-template
    (concat "${title:*} " (propertize "${tags:40}" 'face 'org-tag)))
   (org-roam-capture-templates                                        ;. work-specific entries (employer name/repo) live in me/roam-work-templates, local.el
@@ -888,24 +849,24 @@ click-opens-in-other-window behavior must stay unaffected."
   :demand t)                                                          ;. must load eagerly to register the backend with org-export
 (use-package ob-json                                                  ;> json highlight for babel
   :straight nil                                                       ;. use just for local-packages!
-  :load-path "local-packages"                                         ;. directory ~/.emacs.d/local-packages/ added to load-path
+  :load-path "local-packages"                                         ;. the directory (relative to user-emacs-directory) — naming the .el file breaks require
   :demand t                                                           ;. force to open
   :after org)                                                         ;. after org
 (use-package ob-mermaid                                               ;> execute org babel mermaid
   :after org
   :demand t                                                           ;. load immediately after org (required to register the babel backend)
   :custom
-  (ob-mermaid-cli-path "/home/mahatmus-arch/.local/share/mise/installs/node/25.9.0/bin/mmdc") ;. [fix]: mermaid-cli 11.x strips spaces
-                                                                       ;. inside multi-word node labels under htmlLabels:false (verified
-                                                                       ;. regression vs 10.9.1); pinned via `npm install -g
-                                                                       ;. @mermaid-js/mermaid-cli@10.9.1`, doesn't touch the
-                                                                       ;. pacman-owned /usr/bin/mmdc (11.16.0-2)
-  (ob-mermaid-default-config-file "~/.emacs.d/mermaid-config-emacs.json")
+  (ob-mermaid-cli-path me/mermaid-cli-path)                           ;. [fix]: mermaid-cli 11.x strips spaces inside multi-word node labels under
+                                                                      ;. htmlLabels:false (verified regression vs 10.9.1) — the default is whatever mmdc
+                                                                      ;. is on PATH; pin a 10.9.1 binary in local.el (npm install -g
+                                                                      ;. @mermaid-js/mermaid-cli@10.9.1 under a node manager, leaving the system mmdc alone)
+  (ob-mermaid-default-config-file                                     ;. htmlLabels:false — labels as plain SVG text, no foreignObject
+   (expand-file-name "mermaid-config-emacs.json" user-emacs-directory))
   :config
   (setq org-babel-default-header-args:mermaid                         ;. theme, background, and system chromium (mmdc couldn't find its own chrome-headless-shell)
-        '((:results . "file") (:exports . "results")                  ;. ob-mermaid.el's own defaults — without these, Org drops the result and never inserts the image
+        `((:results . "file") (:exports . "results")                  ;. ob-mermaid.el's own defaults — without these, Org drops the result and never inserts the image
           (:theme . "dark") (:background-color . "transparent")
-          (:puppeteer-config-file . "~/.emacs.d/mermaid-puppeteer-config.json")))
+          (:puppeteer-config-file . ,(expand-file-name "mermaid-puppeteer-config.json" user-emacs-directory))))
   (org-babel-do-load-languages
    'org-babel-load-languages
    '((mermaid . t)

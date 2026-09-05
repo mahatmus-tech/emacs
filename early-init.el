@@ -10,10 +10,12 @@
 (set-fringe-mode 10)                                                  ;> set fringe size
 (let ((colors                                                         ;> load last theme colors
        (expand-file-name "frame-colors.el" user-emacs-directory)))
-  (when (file-exists-p colors) (load colors nil t)))                  
+  (when (file-exists-p colors) (load colors nil t)))
 ;;; ------------------------------------------------------------------- Performance
 (setq package-enable-at-startup nil)                                  ;> disable built-in package.el, straight handles everything
 (setq site-run-file nil)                                              ;> disable search in load-path for site-start.el
+(setq load-prefer-newer t)                                            ;> [fix]: an edited .el must beat a stale sibling .elc — a July ob-json.elc
+                                                                      ;. silently shadowed the August source for weeks
 (setq gc-cons-threshold most-positive-fixnum)                         ;> maximize gc threshold during startup
 (setq gc-cons-percentage 0.6)                                         ;> defer GC more aggressively during startup
 (defvar me/file-name-handler-alist-backup file-name-handler-alist)    ;> save file-name-handler-alist for post-startup restore
