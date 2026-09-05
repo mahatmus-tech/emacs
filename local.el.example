@@ -7,6 +7,17 @@
 ;; with generic defaults there) — no external package symbols at top level,
 ;; same constraint custom.el itself follows.
 
+;; Org root. Every Org path in the config hangs under it: agenda files in
+;; <root>/agenda/ (inbox.org, someday.org, the me/org-agenda-categories
+;; files, gcal-*.org) and org-roam notes in <root>/roam/. Default is ~/org.
+(setq me/org-directory "~/org")
+
+;; mermaid CLI for ob-mermaid. Default is whatever `mmdc' is on PATH; pin a
+;; specific binary when the system one misbehaves — mermaid-cli 11.x strips
+;; spaces inside multi-word node labels under htmlLabels:false, 10.9.1 does
+;; not (npm install -g @mermaid-js/mermaid-cli@10.9.1 under a node manager).
+(setq me/mermaid-cli-path "~/.local/share/mise/installs/node/25.9.0/bin/mmdc")
+
 ;; Google Calendar accounts — (calendar-id file label face), one per
 ;; calendar. Drives org-gcal sync, the generated "Event — Google Calendar
 ;; (<label>)" capture templates (first is bound to "e", second to "E"),
@@ -29,12 +40,15 @@
 
 ;; Extra org-roam-capture-templates entries, spliced in after the generic
 ;; ones (same shape as `org-roam-capture-templates' entries) — typically
-;; work-specific targets you'd rather not have world-readable.
+;; work-specific targets you'd rather not have world-readable. The
+;; :finalize hook is what the tracked templates use so the new note is
+;; shown and the dirvish side panel follows it.
 (setq me/roam-work-templates
       '(("w" "Work" plain "%?"
          :target (file+head "work/${slug}.org"
                             ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n#+filetags: :work:\n#+date: %<%Y-%m-%d>\n")
-         :unnarrowed t)))
+         :unnarrowed t
+         :finalize me/org-roam-capture-finalize)))
 
 ;; Extra HTML export theme(s), appended to the tracked "default" theme —
 ;; same shape as `me/ox-html-theme-alist' entries: name -> (css-file .

@@ -7,11 +7,14 @@ It is meant to be read, not just loaded: every file uses a personal outline conv
 
 * Requirements
 
-- *Emacs 29.1+* — =setopt= and a couple of other settings used here need it. Developed and tested on Emacs 30.
-- *git* — for =straight.el= to clone packages.
+- *Emacs 30.1+* — the built-in tree-sitter modes (=yaml-ts-mode=, =dockerfile-ts-mode=), =flymake-show-diagnostics-at-end-of-line=, =eglot-confirm-server-edits= and the =C-x w= window prefix are Emacs 30 features. Developed and tested on Emacs 31.1 (pgtk/Wayland).
+- *git* — for =straight.el= to clone packages and for tree-sitter grammar builds.
 - *ripgrep* (=rg=) — used by =consult-ripgrep=, =dumb-jump=, and project search.
 - *fd* — used by Dirvish for fast large-directory listing.
+- *A C compiler* (=cc=) — tree-sitter grammars (Clojure, YAML, Dockerfile, JSON) are compiled on first use.
+- *jq* — runs =json= Org babel blocks (=ob-json=).
 - Optional, only if you use the matching feature:
+  - *clojure-lsp* — the language server Eglot starts for Clojure buffers.
   - *mermaid-cli* (=mmdc=) + a Chromium/headless-shell binary — for rendering =mermaid= diagrams from Org babel blocks.
   - A GitLab or GitHub account — for Magit/Forge/pr-review.
   - =claude= CLI — for =claude-code-ide=.
@@ -43,14 +46,12 @@ If you keep a separate personal dotfiles repo, you can instead store the real =l
   ln -s ~/path/to/your-dotfiles/ox-html-themes/your-theme ~/.emacs.d/ox-html-themes/your-theme
 #+end_src
 
-Either way works the same at load time — =local.el= loads right after =custom.el=, before any package is fetched. If it doesn't exist, Emacs starts fine — the features it would configure (Google Calendar sync, a forge/GitLab account, extra org-roam capture targets, an extra HTML export theme, extra workspace repos) are simply absent rather than erroring. See =local.el.example= for the full list of overridable variables and their expected shape.
+Either way works the same at load time — =local.el= loads right after =custom.el=, before any package is fetched. If it doesn't exist, Emacs starts fine — the features it would configure (Google Calendar sync, a forge/GitLab account, extra org-roam capture targets, an extra HTML export theme, extra workspace repos) are simply absent rather than erroring, and the two path-like values fall back to conventional defaults:
 
-A couple of other things still carry *my own* paths as working examples — search for these and adjust to yours:
+- ~me/org-directory~ (default =~/org=) is the root of everything Org: agenda files live in =<root>/agenda/= (=inbox.org=, =someday.org=, the per-category files, the =gcal-*.org= sync targets) and org-roam notes in =<root>/roam/=. The tracked config never names an absolute Org path — every consumer goes through ~me/org-file~, so pointing the root elsewhere is one line in =local.el=.
+- ~me/mermaid-cli-path~ (default: whatever =mmdc= is on =PATH=) lets you pin a specific mermaid-cli binary; see =local.el.example= for why you might want 10.9.1.
 
-| What                            | Where                                        |
-|---------------------------------+-----------------------------------------------|
-| Org agenda categories/files     | ~me/org-agenda-categories~ in =custom.el=      |
-| Org directory / roam directory  | ~org-directory~, ~org-roam-directory~ in =init.el= |
+See =local.el.example= for the full list of overridable variables and their expected shape. Everything else that looks personal is meant to be edited in place: ~me/org-agenda-categories~ in =custom.el= is where you add or rename task categories (file names there are relative to ~me/org-directory~).
 
 * Reading this config
 
@@ -123,7 +124,7 @@ A full Todoist replacement, built on top of stock Org:
 - Workflow: =INBOX → TODO → NEXT → WAIT → DONE / CANCELED=
 - Priorities =[#A]/[#B]/[#C]= map to Todoist's P1/P2/P3; no cookie = P4.
 - Context tags (=@work=, =@home=, =@computer=, =@phone=, =@errand=) mirror Todoist labels.
-- ~me/org-agenda-categories~ in =custom.el= is the single source of truth: each =(key label file has-agenda-view face)= entry generates one capture template, one refile target, — if flagged — one dedicated agenda view, and one colored calendar source. Add a category there instead of editing four separate lists.
+- ~me/org-agenda-categories~ in =custom.el= is the single source of truth: each =(key label file has-agenda-view face)= entry (=file= relative to ~me/org-directory~, e.g. =agenda/work.org=) generates one capture template, one refile target, — if flagged — one dedicated agenda view, and one colored calendar source. Add a category there instead of editing four separate lists.
 - =C-c c= (capture) and =C-c a= (agenda) are the daily entry points; see the tables below.
 
 *** Capture (=C-c c=)
@@ -165,9 +166,6 @@ Under the hood ~me/calendar--org-source~ (=custom.el=) wraps calfw-org's collect
 *** Google Calendar (=C-c g=)
 [[https://github.com/kidd/org-gcal.el][org-gcal]] syncs Google calendars into =agenda/gcal-*.org= two-way, so events show up in =C-c a= and =C-c C= next to the tasks. =C-c g= (~org-gcal-sync~) pulls the window (30 days back, 60 ahead) and pushes local edits of already-synced entries; it never runs on its own. The first sync per calendar opens the browser for the OAuth consent — each calendar id gets its own token, so a work calendar can be authorized with the work account even though the README says "one account". New events start as the =e= capture template (or any heading with a =:calendar-id:= property and an =:org-gcal:= drawer holding the timestamp) and go up with =C-c G= (~org-gcal-post-at-point~). ~me/gcal-calendars~ (=custom.el=) is the list of =(calendar-id file label face)= — it feeds ~org-gcal-fetch-file-alist~ and gives each calendar its own color in the calfw view. The OAuth client id/secret live in =~/.authinfo= (=machine org-gcal login ID password SECRET=); tokens are kept encrypted in =var/oauth2-auto.plstore= — with no GPG key on the machine that is symmetric encryption, so the passphrase is asked once per session.
 
-
-A Todoist CSV → Org converter is included for migrating away from Todoist entirely — see its own header comment for usage.
-
 ** Org export & presentations
 - *Self-contained HTML export* (=ox-html= + =htmlize=): pick a CSS theme per file with =#+HTML_THEME: name=, images (including generated diagrams) are inlined as base64 so the exported =.html= is a single portable file — no external assets, no broken links when you email it or drop it in a wiki.
 - *Mermaid diagrams* via [[https://github.com/arnm/ob-mermaid][ob-mermaid]]: =#+begin_src mermaid :file diagram.svg= blocks render to SVG on =C-c C-c=, shown inline in the buffer.
@@ -194,6 +192,9 @@ Multiple projects each get their own session; =M-x claude-code-ide-list-sessions
 | =C-c k=           | ~claude-code-ide-menu~        | Claude Code for the current project                           |
 | =C-c r=           | ~me/claude-review-branch~     | Claude =/code-review= on the current branch                     |
 | =C-c f=           | ~dirvish~                     | Open Dirvish here                                             |
+| =C-c F=           | ~dirvish-side~                | Focus the side panel from any window / toggle it from inside  |
+| =C-x t 2=         | ~me/new-scratch-tab~          | New tab with a fresh =*scratch*=                                |
+| =C-x t 0=         | ~tabspaces-kill-buffers-close-workspace~ | Close the tab and kill its exclusive buffers       |
 | =C-c d=           | ~docker-compose~              | Docker Compose UI                                             |
 | =C-c a=           | ~org-agenda~                  | Open the agenda dispatcher                                    |
 | =C-c c=           | ~org-capture~                 | Open the capture dispatcher                                   |
@@ -204,6 +205,8 @@ Multiple projects each get their own session; =M-x claude-code-ide-list-sessions
 | =C-c p f/p/b/s/r= | project.el                  | find-file / switch-project / buffer / ripgrep / query-replace |
 | =C-c n l/f/g/i/c= | org-roam                    | buffer toggle / find / graph / insert / capture               |
 | =M-;=             | ~comment-or-uncomment-region~ | Toggle comment on region/line                                 |
+| =M-S-<up/down>=   | multiple-cursors            | Add a cursor on the line above / below                        |
+| =M-g f=           | ~consult-flymake~             | Jump to a diagnostic (Eglot/Flymake)                          |
 | =C-g=             | ~me/keyboard-quit-dwim~       | Quits the minibuffer even when it's unfocused                 |
 | =C-x w u= / =C-x w r= | ~winner-undo~ / ~winner-redo~ | Undo / redo window layout changes (repeatable: =C-x w u u u=) |
 

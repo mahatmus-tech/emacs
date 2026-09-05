@@ -23,7 +23,7 @@
   (add-to-list 'prettify-symbols-alist '(";;;" . ?◆))
   (add-to-list 'prettify-symbols-alist '(";;;;" . ?◇))
   (add-to-list 'prettify-symbols-alist '(";>" . ?→))
-  (add-to-list 'prettify-symbols-alist '(";." . ?↳))  
+  (add-to-list 'prettify-symbols-alist '(";." . ?↳))
 
   ;; 3. Exception so the visual engine matches exactly ";>"
   (setq-local prettify-symbols-compose-predicate
@@ -87,6 +87,9 @@
   (define-key outline-minor-mode-map (kbd "C-c C-y")   (lambda () (interactive) (outline-hide-sublevels 1))))
 ;;; ------------------------------------------------------------------- Utils
 (defun me/keyboard-quit-dwim ()                                       ;> smart C-g: closes minibuffer even when unfocused
+  "Quit like `keyboard-quit', but also abort an unfocused minibuffer.
+With an active region or no minibuffer, behave exactly like C-g; in a
+*Completions* window close it; otherwise abort the pending minibuffer."
   (interactive)
   (cond
    ((region-active-p)                      (keyboard-quit))
@@ -130,7 +133,8 @@
 
 (advice-add 'load-theme :after #'me/save-frame-colors)                ;> pre render last theme to avoid flash
 
-(defun me/new-scratch-tab ()                                          ;> new tab with scrach buffer 
+(defun me/new-scratch-tab ()                                          ;> new tab with scratch buffer
+  "Open a new tab showing a fresh *scratch* buffer (bound to C-x t 2)."
   (interactive)
   (tab-bar-new-tab)
   (scratch-buffer))
@@ -145,7 +149,7 @@ which theme package (or none) applied it."
                                   :color (face-attribute 'mode-line :background nil t))))
 
 (defvar me/workspace-default-repos                                    ;> repos auto-opened by me/setup-workspaces
-  '("~/repos/dotfiles/"))                                              ;. add your own repos in local.el (gitignored, see local.el.example)
+  (list user-emacs-directory))                                        ;. this config itself; add your own repos in local.el (gitignored, see local.el.example)
 
 (defvar me/forge-owned-accounts nil                                   ;> feeds forge-owned-accounts (Version Control section, init.el)
   "Empty by default — set in `local.el' (gitignored, see local.el.example).")
@@ -159,10 +163,10 @@ Returns the tabspace name."
          (new? (not (member name (tabspaces--list-tabspaces)))))      ;. a fresh tab still carries the buffer inherited from tab-new below
     (when (file-directory-p root)
       (tabspaces-switch-or-create-workspace name)
-      (delete-other-windows)                                         ;> the side window survives: no-delete-other-windows
+      (delete-other-windows)                                          ;> the side window survives: no-delete-other-windows
       (let ((default-directory root))
-        (magit-status-setup-buffer root)                             ;> main window
-        (save-selected-window                                        ;> dirvish-side selects its window; keep focus on magit
+        (magit-status-setup-buffer root)                              ;> main window
+        (save-selected-window                                         ;> dirvish-side selects its window; keep focus on magit
           (dirvish-side root)))                                      ;. sessions are per tab (dirvish--scopes), so each workspace keeps its own panel
       (when new?                                                      ;. [fix]: tabspaces--tab-post-open-function resets the buffer-list right after
         (tabspaces-reset-buffer-list)))                               ;. tab-new, before magit/dirvish-side replace the inherited buffer — that
@@ -225,7 +229,7 @@ where `dirvish-side' only yields a plain dired buffer (no session, no data, sent
     (let ((first (cadr (car tabspaces--session-list))))               ;. restore ends on the last saved tab; C-c w lands on the first repo
       (when (member first tabs) (tab-bar-switch-to-tab first)))))
 
-(defun me/dirvish-side-resync (win file)                             ;> deferred half of me/dirvish-side-auto-jump-defer — see there
+(defun me/dirvish-side-resync (win file)                              ;> deferred half of me/dirvish-side-auto-jump-defer — see there
   "Reposition WIN on FILE and refresh the panel, called from the command loop."
   (when (window-live-p win)
     (with-selected-window win
@@ -234,7 +238,7 @@ where `dirvish-side' only yields a plain dired buffer (no session, no data, sent
         (dired-goto-file file))
       (dirvish--redisplay))))
 
-(defun me/dirvish-side-auto-jump-defer (&rest _)                     ;> [fix]: dirvish-side--auto-jump moves point before the command loop resumes
+(defun me/dirvish-side-auto-jump-defer (&rest _)                      ;> [fix]: dirvish-side--auto-jump moves point before the command loop resumes
   "Schedule `me/dirvish-side-resync' for the file just opened, deferred to the command loop.
 `:after' advice on `dirvish-side--auto-jump' (init.el, dirvish :config).
 Run from `buffer-list-update-hook', that function's own goto/expand leaves the
@@ -244,6 +248,31 @@ run synchronously outside the command loop don't fully take effect); same fix."
   (when-let* ((win (dirvish-side--session-visible-p))
               (file buffer-file-name))
     (run-at-time 0 nil #'me/dirvish-side-resync win file)))
+
+(defun me/dirvish-side-open-or-expand ()                              ;> RET in the side panel expands directories in place, like TAB (dirvish-mode-map, init.el)
+  "In a dirvish-side session, toggle the subtree at point if it is a
+directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
+  (interactive)
+  (if-let* ((dv (dirvish-curr))
+            ((eq (dv-type dv) 'side))
+            (file (dired-get-filename nil t))
+            ((file-directory-p file)))
+      (dirvish-subtree-toggle)
+    (dired-find-file)))
+
+(defun me/dirvish-mouse-open-or-expand (event)                        ;> mouse version of `me/dirvish-side-open-or-expand'
+  "Move point to EVENT's position, then run `me/dirvish-side-open-or-expand'.
+Outside a side session, fall back to `dired-mouse-find-file-other-window'
+instead: dired's `mouse-face' + `[follow-link]' convention silently turns
+a real mouse-1 click on a filename into a mouse-2 event, so this is the
+handler that actually runs for a click there, and fullscreen dirvish's
+click-opens-in-other-window behavior must stay unaffected."
+  (interactive "e")
+  (mouse-set-point event)
+  (if-let* ((dv (dirvish-curr))
+            ((eq (dv-type dv) 'side)))
+      (me/dirvish-side-open-or-expand)
+    (dired-mouse-find-file-other-window event)))
 
 (defun me/tabspaces-skip-terminal-record (buffer)                     ;> session save: terminals (eat, ghostel, claude) would only come back as empty shells
   "Return a no-op session record for BUFFER when it is a terminal, else nil."
@@ -267,6 +296,8 @@ exists, rename a pristine startup tab, or open a fresh tab next to whatever is b
              (tab-bar-rename-tab first)))))
 
 (defun me/open-terminal ()                                            ;> bash terminal at project root
+  "Open (or reuse) an eat terminal at the current project's root.
+The buffer is renamed \"term: <project>\" so several projects can each keep one."
   (interactive)
   (let ((buf (eat-project)))
     (with-current-buffer buf
@@ -300,11 +331,36 @@ directory (missing the just-created file) unless reverted by hand."
           (revert-buffer nil t)
           (dired-goto-file file))))))
 
+;;; ------------------------------------------------------------------- Version Control
+(defun my/pr-review-forge-at-point ()                                 ;> C-c C-r in a forge topic: open that MR in pr-review, else prompt for one
+  "Open the current forge pull request in pr-review.
+Uses the `forge-pullreq-p' predicate and `slot-value' rather than
+`cl-typep'/`oref': neither cl-lib nor eieio is loaded when this file is."
+  (interactive)
+  (let ((topic (forge-current-topic)))
+    (if (forge-pullreq-p topic)
+        (let* ((repo   (forge-get-repository topic))
+               (host   (slot-value repo 'githost))
+               (owner  (slot-value repo 'owner))
+               (name   (slot-value repo 'name))
+               (number (slot-value topic 'number)))
+          (pr-review-open host owner name number))
+      (call-interactively #'pr-review))))
 ;;; ------------------------------------------------------------------- Org
-(defvar me/org-agenda-categories                                      ;> (key label file has-agenda-view face) — drives capture templates, refile targets, per-category agenda views,
-  '(("w" "Work"  "~/repos/dotfiles/org/agenda/work.org"  t   font-lock-function-name-face) ;. and the calendar source color (a face, so it follows the theme)
-    ("h" "Home"  "~/repos/dotfiles/org/agenda/home.org"  t   font-lock-string-face)
-    ("l" "Learn" "~/repos/dotfiles/org/agenda/learn.org" nil font-lock-type-face)))
+(defvar me/org-directory "~/org"                                      ;> root of every org path below (agenda/, roam/) — the real one is set in local.el
+  "Org root directory. Generic default; set yours in `local.el' (gitignored, see local.el.example).")
+
+(defun me/org-file (relative)                                         ;> RELATIVE under me/org-directory, expanded at call time — i.e. after local.el loaded
+  "Return RELATIVE expanded under `me/org-directory'."
+  (expand-file-name relative me/org-directory))
+
+(defvar me/mermaid-cli-path (executable-find "mmdc")                  ;> mmdc for ob-mermaid; nil falls back to ob-mermaid's own PATH lookup; pin one in local.el
+  "Path to the mermaid CLI. Override in `local.el' to pin a specific version (see local.el.example).")
+
+(defvar me/org-agenda-categories                                      ;> (key label file has-agenda-view face) — file is relative to me/org-directory; drives capture
+  '(("w" "Work"  "agenda/work.org"  t   font-lock-function-name-face) ;. templates, refile targets, per-category agenda views, and the calendar source color
+    ("h" "Home"  "agenda/home.org"  t   font-lock-string-face)        ;. (a face, so it follows the theme)
+    ("l" "Learn" "agenda/learn.org" nil font-lock-type-face)))
 
 (defun me/org-agenda-capture-entries ()                               ;> one "<Label> task" capture template per category
   "Build an `org-capture-templates' entry for each `me/org-agenda-categories' item."
@@ -312,7 +368,7 @@ directory (missing the just-created file) unless reverted by hand."
     (dolist (cat me/org-agenda-categories (nreverse result))
       (let ((key (nth 0 cat))
             (label (nth 1 cat))
-            (file (nth 2 cat)))
+            (file (me/org-file (nth 2 cat))))
         (push
          (list key (format "%s task" label) 'entry
                (list 'file+headline file "Inbox")
@@ -324,9 +380,9 @@ directory (missing the just-created file) unless reverted by hand."
   "Build `org-refile-targets' entries for each `me/org-agenda-categories' item."
   (let (result)
     (dolist (cat me/org-agenda-categories)
-      (push (cons (nth 2 cat) '(:maxlevel . 2)) result))
+      (push (cons (me/org-file (nth 2 cat)) '(:maxlevel . 2)) result))
     (append (nreverse result)
-            '(("~/repos/dotfiles/org/agenda/someday.org" :maxlevel . 1)))))
+            (list (cons (me/org-file "agenda/someday.org") '(:maxlevel . 1))))))
 
 (defun me/org-agenda-view-entries ()                                  ;> one "<Label> tasks" agenda view per category flagged with has-agenda-view
   "Build `org-agenda-custom-commands' entries for categories that want a dedicated view."
@@ -335,7 +391,7 @@ directory (missing the just-created file) unless reverted by hand."
       (when (nth 3 cat)
         (let ((key (upcase (nth 0 cat)))
               (label (nth 1 cat))
-              (file (nth 2 cat)))
+              (file (me/org-file (nth 2 cat))))
           (push
            (list key label
                  (list
@@ -386,7 +442,7 @@ than picking an arbitrary key."
   (let ((rest (mapcar #'expand-file-name (org-agenda-files)))
         sources)
     (pcase-dolist (`(,label ,file ,face)
-                   (append (mapcar (lambda (c) (list (nth 1 c) (nth 2 c) (nth 4 c))) me/org-agenda-categories)
+                   (append (mapcar (lambda (c) (list (nth 1 c) (me/org-file (nth 2 c)) (nth 4 c))) me/org-agenda-categories)
                            (mapcar (lambda (c) (list (nth 2 c) (nth 1 c) (nth 3 c))) me/gcal-calendars)))
       (setq file (expand-file-name file))
       (setq rest (delete file rest))
@@ -461,7 +517,7 @@ than picking an arbitrary key."
   `(("default" . (,(expand-file-name "default/style.css" me/ox-html-themes-dir) . nil))) ;. add your own themes in local.el (gitignored, see local.el.example)
   "Selectable HTML export themes. Pick one per file with `#+HTML_THEME: NAME'.")
 
-(defun me/org-html--file-to-data-uri (file)
+(defun me/org-html--file-to-data-uri (file)                           ;> image file → data: URI; mime from the extension, nil for anything else
   "Return FILE's contents as a base64 data: URI, or nil if unreadable."
   (when (file-readable-p file)
     (let* ((ext (downcase (or (file-name-extension file) "")))
