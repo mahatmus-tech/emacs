@@ -1,18 +1,21 @@
 ;;; init.el --- Mahatmus Emacs Configuration -*- lexical-binding: t -*-
 ;;; ------------------------------------------------------------------- Tips
 ;;;; -                                                                   Navigation
-;; TAB    on heading  → cycle visibility (hide → children → expand)
-;; S-TAB  on heading  → collapse to heading only
-;; M-g o              → jump to any heading by name (consult-outline)
-;; C-c C-t            → expand only headings
+;; TAB    on heading  → cycle that section (hide → children → expand)
+;; S-TAB  on heading  → cycle the whole buffer (all → headings → top-level)
+;; C-c C-t            → show every heading and top-level form (table of contents)
+;; C-c C-s            → sections + subsections only
 ;; C-c C-y            → collapse all (back to open-file state)
+;; M-g o / M-g i      → jump to a heading or a package by name (consult-outline / imenu)
+;; RET on a note link → describe that symbol; [fix]/[perf]/[hack]/[todo] are badges
 ;; C-c w              → open a tab per repo in me/workspace-default-repos
 ;; C-c e              → open init.el (this file)
 ;;;; -                                                                   Conventions
 ;; ;;; -----  section  (level 1, shown collapsed on open)
 ;; ;;;; -      subsection  (level 2)
-;; ;>       inline comment at column 70 — explains WHY, not what
+;; ;>       inline note, drawn at column 70 by init-panel — explains WHY, not what
 ;; ;.       continuation of the line above, or a sub-item inside a block
+;; [fix]:   note prefix for a workaround (also [perf] [hack] [todo] [wip] [emacsNN])
 ;; M-;      comment or uncomment region (rebound below, see Keybinds)
 ;; functions live in custom.el (loaded first); init.el only wires them
 ;;;; -                                                                   Packages
@@ -170,10 +173,19 @@
   (doom-modeline-buffer-file-name-style 'relative-to-project)
   (doom-modeline-bar-width 0))
 ;;;; -                                                                   Outline
-(add-hook 'emacs-lisp-mode-hook #'me/elisp-outline-setup)             ;> set outline-mode when on init.el
-(use-package outline-minor-faces                                      ;> outline-faces best visibility in emacs config
-  :after outline
-  :hook (outline-minor-mode . outline-minor-faces-mode))
+(use-package init-panel                                               ;> read this config as a panel: folded sections with icons, notes drawn at column 70
+  :straight nil                                                       ;. local package on its way to a repo — local-packages/init-panel/README.md
+  :load-path "local-packages/init-panel"                              ;. the package directory, not the file
+  :hook (emacs-lisp-mode . init-panel-mode)                           ;. native outline-minor-mode underneath: TAB / S-TAB cycle on a heading
+  :bind (:map init-panel-mode-map
+              ("C-c C-t" . init-panel-show-headings)                  ;. every heading and top-level form (table of contents)
+              ("C-c C-s" . init-panel-fold-subsections)               ;. sections + subsections only
+              ("C-c C-y" . init-panel-fold)))                         ;. back to the open-file state: top-level sections only
+(add-hook 'emacs-lisp-mode-hook                                       ;> writing aids for the column-70 layout the files still use on disk
+          (lambda ()
+            (setq-local comment-column 70)
+            (setq-local display-fill-column-indicator-column 70)
+            (display-fill-column-indicator-mode 1)))
 ;;;; -                                                                   Code
 (use-package rainbow-delimiters                                       ;> colorize parentheses by nesting depth
   :hook (prog-mode . rainbow-delimiters-mode))

@@ -68,11 +68,15 @@ Open =init.el= (=C-c e=) and it starts folded to section level. From there:
 
 | Key     | Action                                                |
 |---------+-------------------------------------------------------|
-| =TAB=     | On a heading: cycle hide → children → expand          |
-| =S-TAB=   | On a heading: collapse to heading only                |
-| =C-c C-t= | Expand only headings (whole-buffer table of contents) |
+| =TAB=     | On a heading: cycle that section hide → children → expand |
+| =S-TAB=   | On a heading: cycle the whole buffer all → headings → top-level |
+| =C-c C-t= | Show every heading and top-level form (table of contents) |
+| =C-c C-s= | Sections and subsections only                         |
 | =C-c C-y= | Collapse all, back to open-file state                 |
 | =M-g o=   | Jump to any heading by name (=consult-outline=)         |
+| =M-g i=   | Same through =imenu= (sections and subsections)         |
+
+The rendering is done by [[file:local-packages/init-panel/README.md][init-panel]] (a local package on its way to its own repository; zero dependencies, Emacs 29+). It turns on the built-in =outline-minor-mode= with native cycling and the folded initial state, then *draws* the rest: section rules as box lines with an icon per section, every =;>= / =;.= note aligned at column 70 through a display property (one space before the note is enough — no typed padding, no alignment noise in diffs), keys like =C-c w= in the key face, =[fix]=/=[perf]=/=[hack]=/=[todo]= prefixes as badges, symbol names as links (=RET= describes them), a kind icon per form (package, setting, hook, binding…) in the left margin with a guide bar for the section you are in, a =Section › Subsection= header line, and a keyword summary next to each folded =use-package=. Flymake's end-of-line text is hidden while the mode is on. Everything has an option and degrades to plain text without a Nerd Font; see the package README for the table.
 
 * Performance
 

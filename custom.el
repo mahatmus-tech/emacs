@@ -1,72 +1,6 @@
 ;;; custom.el --- Mahatmus Emacs Configuration -*- lexical-binding: t -*-
 ;;; ------------------------------------------------------------------- Outline
-;;;; -                                                                   Functions
-(defun me/elisp-outline-setup ()                                      ;> personal outline minor mode
-  "Enable outline navigation and visual aids for Emacs Lisp files."
-  (outline-minor-mode 1)
-  (outline-hide-sublevels 1)
-  (setq comment-column 70)
-  (setq display-fill-column-indicator-column 70)
-  (display-fill-column-indicator-mode 1)
-
-  ;; fold ellipsis — match org-mode ⬎
-  (unless buffer-display-table
-    (setq buffer-display-table (make-display-table)))
-  (set-display-table-slot buffer-display-table 'selective-display
-                          (string-to-vector " ⬎"))
-
-  ;; 1. Ensure the list isn't nil before injecting
-  (unless (boundp 'prettify-symbols-alist)
-    (setq prettify-symbols-alist nil))
-
-  ;; 2. Inject heading and inline-arrow symbols
-  (add-to-list 'prettify-symbols-alist '(";;;" . ?◆))
-  (add-to-list 'prettify-symbols-alist '(";;;;" . ?◇))
-  (add-to-list 'prettify-symbols-alist '(";>" . ?→))
-  (add-to-list 'prettify-symbols-alist '(";." . ?↳))
-
-  ;; 3. Exception so the visual engine matches exactly ";>"
-  (setq-local prettify-symbols-compose-predicate
-              (lambda (start end match)
-                (or (string= match ";>")
-                    (string= match ";.")
-                    (string= match ";;;")
-                    (string= match ";;;;")
-                    (prettify-symbols-default-compose-p start end match))))
-
-  ;; 4. Dim heading dashes
-  (font-lock-add-keywords nil
-                          '(("^;;; \\(-+\\)"  1 'shadow t)
-                            ("^;;;; \\(-\\)"  1 'shadow t))
-                          'append)
-
-  ;; 5. Activate the visual engine
-  (run-at-time 0.05 nil (lambda ()
-                          (prettify-symbols-mode 1)
-                          (font-lock-flush))))
-
-(defun me/outline-tab-dwim ()                                         ;> outline cycle function
-  "Cycle outline if on a heading, otherwise run the default indent command."
-  (interactive)
-  (if (outline-on-heading-p)
-      (outline-cycle)
-    (indent-for-tab-command)))
-
-(defun me/outline-backtab-dwim ()                                     ;> collapse current heading only
-  "Collapse the current heading's subtree. If not on a heading, go up first."
-  (interactive)
-  (save-excursion
-    (unless (outline-on-heading-p)
-      (outline-back-to-heading))
-    (outline-hide-subtree)))
-
-(defun me/outline-cycle-reverse ()                                    ;> reverse outline cycle
-  "Cycle outline visibility in reverse (show → headings → hide)."
-  (interactive)
-  (outline-cycle)
-  (outline-cycle))
-
-(defun outline-copy-visible (beg end)                                 ;> copy helper
+(defun outline-copy-visible (beg end)                                 ;> copy helper — folding, faces and notes come from init-panel (init.el)
   "Copy only visible text in region, skipping folded outline sections."
   (interactive "r")
   (let ((result ""))
@@ -78,13 +12,6 @@
         (setq beg next)))
     (kill-new result)
     (message "Visible region copied (%d chars)" (length result))))
-
-;;;; -                                                                   Keybindings
-(with-eval-after-load 'outline                                        ;> set TAB/S-TAB outline bindings
-  (define-key outline-minor-mode-map (kbd "TAB")       #'me/outline-tab-dwim)
-  (define-key outline-minor-mode-map (kbd "<backtab>") #'me/outline-cycle-reverse)
-  (define-key outline-minor-mode-map (kbd "C-c C-t")   #'outline-show-only-headings)
-  (define-key outline-minor-mode-map (kbd "C-c C-y")   (lambda () (interactive) (outline-hide-sublevels 1))))
 ;;; ------------------------------------------------------------------- Utils
 (defun me/keyboard-quit-dwim ()                                       ;> smart C-g: closes minibuffer even when unfocused
   "Quit like `keyboard-quit', but also abort an unfocused minibuffer.
