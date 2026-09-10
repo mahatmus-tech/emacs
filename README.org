@@ -75,6 +75,7 @@ Open =init.el= (=C-c e=) and it starts folded to section level. From there:
 | =C-c C-t= | Show every heading and top-level form (table of contents) |
 | =C-c C-s= | Sections and subsections only                         |
 | =C-c C-y= | Collapse all, back to open-file state                 |
+| =C-c C-o= | Edit the section or form at point in a popup over the panel (=C-c C-c= returns) |
 | =M-g o=   | Jump to any heading by name (=consult-outline=)         |
 | =M-g i=   | Same through =imenu= (sections and subsections)         |
 

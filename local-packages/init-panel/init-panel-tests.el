@@ -318,6 +318,37 @@ export BAR=2 #> [perf]: bar is fast
       (should (equal (mapcar #'car (cdr (assoc "Packages" idx))) '("winner" "nerd-icons")))
       (should (equal (mapcar #'car (cdr (assoc "Subsection" idx))) '("Settings" "Packages"))))))
 
+;;;; Focus
+
+(ert-deftest init-panel-focus-bounds ()
+  (init-panel-tests--with-buffer emacs-lisp-mode init-panel-tests--elisp
+    (init-panel-tests--goto "(setq-default truncate-lines t)")
+    (let ((b (init-panel--focus-bounds)))
+      (should (string-prefix-p "(setq-default truncate-lines" (buffer-substring-no-properties (car b) (cdr b))))
+      (should (string-match-p ";\\. continuation line\n\\'" (buffer-substring-no-properties (car b) (cdr b)))))
+    (init-panel-tests--goto ";;; Files")
+    (let ((b (init-panel--focus-bounds)))
+      (should (= (car b) (line-beginning-position)))
+      (should (= (cdr b) (point-max))))))
+
+(ert-deftest init-panel-focus-indirect-edit ()
+  (init-panel-tests--with-buffer emacs-lisp-mode init-panel-tests--elisp
+    (let ((init-panel-focus-frame nil) (base (current-buffer)))
+      (init-panel-tests--goto "(setq ring-bell-function")
+      (let* ((clone (init-panel-focus)))
+        (should (buffer-live-p clone))
+        (should (eq (buffer-base-buffer clone) base))
+        (with-current-buffer clone
+          (should init-panel-focus-mode)
+          (should (= (point-min) (line-beginning-position)))
+          (should (string-prefix-p "(setq ring-bell-function" (buffer-substring-no-properties (point-min) (point-max))))
+          (goto-char (point-max))
+          (insert ";; edited in focus\n")
+          (init-panel-focus-close))
+        (should-not (buffer-live-p clone))
+        (should (eq (current-buffer) base))
+        (should (string-match-p ";; edited in focus" (buffer-string)))))))
+
 ;;;; Teardown
 
 (ert-deftest init-panel-disable-restores-buffer ()

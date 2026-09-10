@@ -49,7 +49,8 @@ Nothing to learn beyond two markers:
   :bind (:map init-panel-mode-map
               ("C-c C-t" . init-panel-show-headings)     ; every heading and top-level form
               ("C-c C-s" . init-panel-fold-subsections)  ; sections + subsections
-              ("C-c C-y" . init-panel-fold)))            ; sections only (the open-file state)
+              ("C-c C-y" . init-panel-fold)              ; sections only (the open-file state)
+              ("C-c C-o" . init-panel-focus)))           ; edit the block at point in a popup
 ```
 
 The mode map is empty on purpose; bind what you like. `TAB` / `S-TAB` on a
@@ -77,6 +78,7 @@ heading cycle it / the whole buffer — that is Emacs' own
 | `Section › Subsection` header line for the section point is in | `init-panel-header-line` `'point` / `'window-start` / nil | — |
 | `which-function-mode` shows the section path | always | — |
 | Flymake end-of-line text hidden while reading | `init-panel-quiet-diagnostics` | — |
+| Focus: edit the block at point in an indirect buffer over the panel | `init-panel-focus`, `init-panel-focus-frame`, `init-panel-focus-max-height` | window below instead of a child frame |
 | Note of the form at point echoed via eldoc | `init-panel-eldoc` nil / `'always` | — |
 | Line at point shown as typed | `init-panel-raw-at-point` nil | — |
 
@@ -91,6 +93,7 @@ Unicode or the literal text, never a tofu box.
 - `init-panel-toggle-style` — column ↔ right margin, per buffer.
 - `init-panel-normalize-buffer` / `init-panel-normalize-region` — strip typed layout (heading dashes, note padding) from a file that was aligned by hand; the panel draws it anyway.
 - `init-panel-describe-at-point` — what `RET` on a link runs.
+- `init-panel-focus` / `init-panel-focus-close` — open the section or form at point in an indirect buffer (child frame on GUI, window in a terminal); `C-c C-c` returns. Edits are the file's own text: nothing is copied or synced back, undo is shared.
 
 ## How it is built
 

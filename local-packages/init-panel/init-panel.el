@@ -41,7 +41,9 @@
 ;;   - summarizes a folded `use-package' with the keywords it contains;
 ;;   - keeps a `Section › Subsection' breadcrumb in the header line and
 ;;     feeds `imenu' / `which-function-mode';
-;;   - silences on-the-fly checker text at end of line while reading.
+;;   - silences on-the-fly checker text at end of line while reading;
+;;   - `init-panel-focus' edits one block in an indirect buffer over the
+;;     panel (child frame, or a window in a terminal): no copy, no sync.
 ;;
 ;; Every visual is a `defcustom' and degrades to plain text when the
 ;; display can't show a glyph (`char-displayable-p').  Icons default to
@@ -52,6 +54,7 @@
 ;;   (define-key init-panel-mode-map (kbd "C-c C-t") #'init-panel-show-headings)
 ;;   (define-key init-panel-mode-map (kbd "C-c C-s") #'init-panel-fold-subsections)
 ;;   (define-key init-panel-mode-map (kbd "C-c C-y") #'init-panel-fold)
+;;   (define-key init-panel-mode-map (kbd "C-c C-o") #'init-panel-focus)
 
 ;;; Code:
 
@@ -1085,6 +1088,116 @@ See `init-panel-normalize-region'."
   (let ((n (init-panel-normalize-region (point-min) (point-max))))
     (message "init-panel: %d line%s normalized" n (if (= n 1) "" "s"))
     n))
+
+;;;; Focus: edit one block in an indirect buffer, over the panel
+
+(defcustom init-panel-focus-frame t
+  "Show the focus buffer in a child frame on graphical displays.
+Otherwise (and always on text terminals) it opens in a window below."
+  :type 'boolean)
+
+(defcustom init-panel-focus-max-height 40
+  "Most lines a focus frame or window will take."
+  :type 'integer)
+
+(defvar-local init-panel--focus-base nil
+  "The panel buffer a focus buffer was opened from.")
+
+(defvar init-panel-focus-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c") #'init-panel-focus-close)
+    (define-key map (kbd "C-c C-k") #'init-panel-focus-close)
+    map)
+  "Keymap of `init-panel-focus-mode'.")
+
+(define-minor-mode init-panel-focus-mode
+  "Editing one block of a panel in its own buffer; \\[init-panel-focus-close] returns."
+  :lighter " focus"
+  :keymap init-panel-focus-mode-map)
+
+(defun init-panel--focus-bounds ()
+  "(BEG . END) of the block around point: a heading's subtree or a top-level form.
+A form's trailing note continuations (code-less `;.' lines) are included."
+  (save-excursion
+    (beginning-of-line)
+    (if (looking-at init-panel--heading-re)
+        (let ((beg (point)))
+          (outline-end-of-subtree)
+          (cons beg (min (point-max) (1+ (point)))))
+      (let* ((end (progn (ignore-errors (end-of-defun)) (point)))
+             (beg (progn (ignore-errors (beginning-of-defun)) (point))))
+        (goto-char end)
+        (while (and (< (point) (point-max))
+                    (looking-at (concat "^[ \t]*" (regexp-quote (init-panel--comment)) "[>.]")))
+          (forward-line 1))
+        (cons beg (point))))))
+
+(defun init-panel--focus-buffer (beg end)
+  "An indirect buffer of the current buffer, narrowed to BEG..END, ready to edit."
+  (let* ((base (current-buffer))
+         (title (string-trim (buffer-substring-no-properties beg (min end (line-end-position)))))
+         (name (generate-new-buffer-name (format "*focus: %s*" (truncate-string-to-width title 40 nil nil "…"))))
+         (clone (make-indirect-buffer base name t)))
+    (with-current-buffer clone
+      (narrow-to-region beg end)
+      (goto-char (point-min))
+      (when (bound-and-true-p outline-minor-mode) (outline-show-all))
+      (when (bound-and-true-p init-panel-header-line)
+        (setq header-line-format (propertize (format " %s — C-c C-c to return" title) 'face 'init-panel-header)))
+      (setq init-panel--focus-base base)
+      (init-panel-focus-mode 1))
+    clone))
+
+(defun init-panel--focus-show (clone lines)
+  "Display CLONE, sized for LINES, in a child frame or a window below."
+  (let ((height (min init-panel-focus-max-height (+ lines 2))))
+    (if (and init-panel-focus-frame (display-graphic-p))
+        (let* ((parent (selected-frame))
+               (pw (frame-width parent))
+               (width (max 60 (min (- pw 8) 120)))
+               (frame (make-frame `((parent-frame . ,parent)
+                                    (name . ,(buffer-name clone))
+                                    (undecorated . t)
+                                    (minibuffer . nil)
+                                    (width . ,width) (height . ,height)
+                                    (left . ,(* (frame-char-width parent) (max 0 (/ (- pw width) 2))))
+                                    (top . ,(* (frame-char-height parent) 3))
+                                    (internal-border-width . 2)
+                                    (vertical-scroll-bars . nil)
+                                    (menu-bar-lines . 0) (tool-bar-lines . 0) (tab-bar-lines . 0)
+                                    (init-panel-focus . t)))))
+          (set-window-buffer (frame-root-window frame) clone)
+          (set-window-dedicated-p (frame-root-window frame) t)
+          (select-frame-set-input-focus frame))
+      (pop-to-buffer clone `((display-buffer-below-selected) (window-height . ,height))))))
+
+(defun init-panel-focus ()
+  "Edit the block at point in its own buffer, over the folded panel.
+The block is the section under a heading, or the top-level form around
+point.  The buffer is indirect: edits land in the file immediately, undo
+is shared, nothing is copied back.  \\[init-panel-focus-close] returns."
+  (interactive)
+  (unless init-panel--heading-re (init-panel--build-regexps))
+  (let* ((bounds (init-panel--focus-bounds))
+         (lines (count-lines (car bounds) (cdr bounds)))
+         (clone (init-panel--focus-buffer (car bounds) (cdr bounds))))
+    (init-panel--focus-show clone lines)
+    clone))
+
+(defun init-panel-focus-close ()
+  "Close the focus buffer and go back to the panel it came from."
+  (interactive)
+  (let* ((clone (current-buffer))
+         (base init-panel--focus-base)
+         (frame (selected-frame)))
+    (if (frame-parameter frame 'init-panel-focus)
+        (progn (delete-frame frame) (kill-buffer clone))
+      (let ((win (get-buffer-window clone)))
+        (kill-buffer clone)
+        (when (and win (window-live-p win) (not (eq win (frame-root-window))))
+          (delete-window win))))
+    (when (buffer-live-p base)
+      (pop-to-buffer-same-window base))))
 
 ;;;; Commands
 
