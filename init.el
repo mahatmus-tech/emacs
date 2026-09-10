@@ -753,7 +753,11 @@
   (setq org-agenda-files ;. every .org under agenda/ (gcal-*.org included); nil when the root doesn't exist yet
         (let ((dir (me/org-file "agenda")))
           (when (file-directory-p dir)
-            (directory-files-recursively dir "\\`[^#].*\\.org\\'")))))
+            (directory-files-recursively dir "\\`[^#].*\\.org\\'"))))
+  ;; Babel
+  (org-babel-do-load-languages ;. [fix]: was inside :custom — org-babel-do-load-languages is a function, not a
+   'org-babel-load-languages    ;. variable, so use-package silently mis-set it instead of calling it; belongs
+   '((clojure . t))))           ;. in :config, same as ob-mermaid does for mermaid/scheme below
 
 ;;;; Packages
 (use-package org-modern ;> modern looks for Org buffers
