@@ -59,10 +59,12 @@ See =local.el.example= for the full list of overridable variables and their expe
 
 | Marker  | Meaning                                                 |
 |---------+---------------------------------------------------------|
-| =;;; ---= | Section (level 1 heading, folds closed on open)         |
-| =;;;; -=  | Subsection (level 2 heading)                            |
-| =;>=      | Inline comment on a config item — the *why*, not the *what* |
-| =;.=      | Same, for a sub-item inside that config item            |
+| =;;; Name=  | Section (level 1 heading, folds closed on open)         |
+| =;;;; Name= | Subsection (level 2 heading)                            |
+| =;>=        | Note after a form, one space before it — the *why*, not the *what* |
+| =;.=        | Continuation of that note, or a sub-item inside the form  |
+
+The files carry only the markers; the rules, icons and the note column are drawn by init-panel (see below). =init-panel-normalize-buffer= converts a file that was aligned by hand.
 
 Open =init.el= (=C-c e=) and it starts folded to section level. From there:
 
@@ -76,7 +78,7 @@ Open =init.el= (=C-c e=) and it starts folded to section level. From there:
 | =M-g o=   | Jump to any heading by name (=consult-outline=)         |
 | =M-g i=   | Same through =imenu= (sections and subsections)         |
 
-The rendering is done by [[file:local-packages/init-panel/README.md][init-panel]] (a local package on its way to its own repository; zero dependencies, Emacs 29+). It turns on the built-in =outline-minor-mode= with native cycling and the folded initial state, then *draws* the rest: section rules as box lines with an icon per section, every =;>= / =;.= note aligned at column 70 through a display property (one space before the note is enough — no typed padding, no alignment noise in diffs), keys like =C-c w= in the key face, =[fix]=/=[perf]=/=[hack]=/=[todo]= prefixes as badges, symbol names as links (=RET= describes them), a kind icon per form (package, setting, hook, binding…) in the left margin with a guide bar for the section you are in, a =Section › Subsection= header line, and a keyword summary next to each folded =use-package=. Flymake's end-of-line text is hidden while the mode is on. Everything has an option and degrades to plain text without a Nerd Font; see the package README for the table.
+The rendering is done by [[file:local-packages/init-panel/README.md][init-panel]] (a local package on its way to its own repository; zero dependencies, Emacs 29+). It turns on the built-in =outline-minor-mode= with native cycling and the folded initial state, then *draws* the rest: section rules as box lines with an icon per section, every =;>= / =;.= note aligned at column 70 through a display property (the files have one space before the note — no typed padding, no alignment noise in diffs), keys like =C-c w= in the key face, =[fix]=/=[perf]=/=[hack]=/=[todo]= prefixes as badges, symbol names as links (=RET= describes them), a kind icon per form (package, setting, hook, binding…) in the left margin with a marker on the heading of the section you are in, a =Section › Subsection= header line, and a keyword summary next to each folded =use-package=. Flymake's end-of-line text is hidden while the mode is on. Everything has an option and degrades to plain text without a Nerd Font; see the package README for the table.
 
 * Performance
 

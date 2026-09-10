@@ -89,6 +89,7 @@ Unicode or the literal text, never a tofu box.
 - `init-panel-mode` — the minor mode.
 - `init-panel-fold` / `init-panel-fold-subsections` / `init-panel-show-headings` — the three fold states.
 - `init-panel-toggle-style` — column ↔ right margin, per buffer.
+- `init-panel-normalize-buffer` / `init-panel-normalize-region` — strip typed layout (heading dashes, note padding) from a file that was aligned by hand; the panel draws it anyway.
 - `init-panel-describe-at-point` — what `RET` on a link runs.
 
 ## How it is built
