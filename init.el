@@ -6,6 +6,7 @@
 ;; C-c C-t            → show every heading and top-level form (table of contents)
 ;; C-c C-s            → sections + subsections only
 ;; C-c C-y            → collapse all (back to open-file state)
+;; C-c C-o            → edit the block at point in a popup over the panel; C-c C-c returns
 ;; M-g o / M-g i      → jump to a heading or a package by name (consult-outline / imenu)
 ;; RET on a note link → describe that symbol; [fix]/[perf]/[hack]/[todo] are badges
 ;; C-c w              → open a tab per repo in me/workspace-default-repos
@@ -180,7 +181,8 @@
   :bind (:map init-panel-mode-map
               ("C-c C-t" . init-panel-show-headings) ;. every heading and top-level form (table of contents)
               ("C-c C-s" . init-panel-fold-subsections) ;. sections + subsections only
-              ("C-c C-y" . init-panel-fold))) ;. back to the open-file state: top-level sections only
+              ("C-c C-y" . init-panel-fold) ;. back to the open-file state: top-level sections only
+              ("C-c C-o" . init-panel-focus))) ;. edit the section or form at point in a popup (indirect buffer); C-c C-c returns
 ;;;; Code
 (use-package rainbow-delimiters ;> colorize parentheses by nesting depth
   :hook (prog-mode . rainbow-delimiters-mode))
