@@ -1,6 +1,6 @@
 ;;; custom.el --- Mahatmus Emacs Configuration -*- lexical-binding: t -*-
-;;; ------------------------------------------------------------------- Outline
-(defun outline-copy-visible (beg end)                                 ;> copy helper — folding, faces and notes come from init-panel (init.el)
+;;; Outline
+(defun outline-copy-visible (beg end) ;> copy helper — folding, faces and notes come from init-panel (init.el)
   "Copy only visible text in region, skipping folded outline sections."
   (interactive "r")
   (let ((result ""))
@@ -12,8 +12,8 @@
         (setq beg next)))
     (kill-new result)
     (message "Visible region copied (%d chars)" (length result))))
-;;; ------------------------------------------------------------------- Utils
-(defun me/keyboard-quit-dwim ()                                       ;> smart C-g: closes minibuffer even when unfocused
+;;; Utils
+(defun me/keyboard-quit-dwim () ;> smart C-g: closes minibuffer even when unfocused
   "Quit like `keyboard-quit', but also abort an unfocused minibuffer.
 With an active region or no minibuffer, behave exactly like C-g; in a
 *Completions* window close it; otherwise abort the pending minibuffer."
@@ -24,19 +24,19 @@ With an active region or no minibuffer, behave exactly like C-g; in a
    ((> (minibuffer-depth) 0)               (abort-recursive-edit))
    (t                                      (keyboard-quit))))
 
-(defun me/flymake-elisp-setup ()                                      ;> flymake for elisp: no checkdoc, full load-path
+(defun me/flymake-elisp-setup () ;> flymake for elisp: no checkdoc, full load-path
   "Tune Flymake's Emacs Lisp backends: drop checkdoc, inherit `load-path'."
   (remove-hook 'flymake-diagnostic-functions #'elisp-flymake-checkdoc t)
   (setq-local elisp-flymake-byte-compile-load-path (cons "./" load-path)))
 
-(defun me/open-config ()                                              ;> shortcut to init.el
+(defun me/open-config () ;> shortcut to init.el
   "Open init.el in the current window."
   (interactive)
   (find-file (expand-file-name "init.el" user-emacs-directory)))
 
-(defun me/save-frame-colors (&rest _)                                 ;> persist theme colors for next startup
+(defun me/save-frame-colors (&rest _) ;> persist theme colors for next startup
   "Write current theme's frame params to frame-colors.el."
-  (when (display-graphic-p)                                           ;> skip in batch/TTY — font param would be "tty"
+  (when (display-graphic-p) ;> skip in batch/TTY — font param would be "tty"
     (let ((bg     (face-background 'default    nil t))
           (fg     (face-foreground 'default    nil t))
           (cursor (face-background 'cursor     nil t))
@@ -46,10 +46,10 @@ With an active region or no minibuffer, behave exactly like C-g; in a
           (alpha  (frame-parameter nil 'alpha-background))
           (file   (expand-file-name "frame-colors.el" user-emacs-directory)))
       (when (and bg fg
-                 (not (string-prefix-p "unspecified" bg))  ;> skip terminal pseudo-colors
+                 (not (string-prefix-p "unspecified" bg)) ;> skip terminal pseudo-colors
                  (not (string-prefix-p "unspecified" fg)))
         (with-temp-file file
-          (insert ";; -*- lexical-binding: t; -*-\n")                 ;. [fix]: Emacs 31 warns on `load' without this cookie
+          (insert ";; -*- lexical-binding: t; -*-\n") ;. [fix]: Emacs 31 warns on `load' without this cookie
           (insert (format "(add-to-list 'default-frame-alist '(background-color . %S))\n" bg))
           (insert (format "(add-to-list 'default-frame-alist '(foreground-color . %S))\n" fg))
           (when cursor (insert (format "(add-to-list 'default-frame-alist '(cursor-color     . %S))\n" cursor)))
@@ -58,15 +58,15 @@ With an active region or no minibuffer, behave exactly like C-g; in a
           (when font   (insert (format "(add-to-list 'default-frame-alist '(font             . %S))\n" font)))
           (when alpha  (insert (format "(add-to-list 'default-frame-alist '(alpha-background . %S))\n" alpha))))))))
 
-(advice-add 'load-theme :after #'me/save-frame-colors)                ;> pre render last theme to avoid flash
+(advice-add 'load-theme :after #'me/save-frame-colors) ;> pre render last theme to avoid flash
 
-(defun me/new-scratch-tab ()                                          ;> new tab with scratch buffer
+(defun me/new-scratch-tab () ;> new tab with scratch buffer
   "Open a new tab showing a fresh *scratch* buffer (bound to C-x t 2)."
   (interactive)
   (tab-bar-new-tab)
   (scratch-buffer))
-;;; ------------------------------------------------------------------- Workspace
-(defun me/tab-bar-refresh-focus-highlight (&rest _)                   ;> border on the focused tab tracks the active theme
+;;; Workspace
+(defun me/tab-bar-refresh-focus-highlight (&rest _) ;> border on the focused tab tracks the active theme
   "Set `tab-bar-tab's box border color from the active `mode-line' face.
 Wired in init.el to run once at startup and again on every theme change,
 so the border always matches whichever theme is active — regardless of
@@ -75,32 +75,32 @@ which theme package (or none) applied it."
                        :box (list :line-width 2
                                   :color (face-attribute 'mode-line :background nil t))))
 
-(defvar me/workspace-default-repos                                    ;> repos auto-opened by me/setup-workspaces
-  (list user-emacs-directory))                                        ;. this config itself; add your own repos in local.el (gitignored, see local.el.example)
+(defvar me/workspace-default-repos ;> repos auto-opened by me/setup-workspaces
+  (list user-emacs-directory)) ;. this config itself; add your own repos in local.el (gitignored, see local.el.example)
 
-(defvar me/forge-owned-accounts nil                                   ;> feeds forge-owned-accounts (Version Control section, init.el)
+(defvar me/forge-owned-accounts nil ;> feeds forge-owned-accounts (Version Control section, init.el)
   "Empty by default — set in `local.el' (gitignored, see local.el.example).")
 
-(defun me/open-repo-workspace (repo-dir)                              ;> shared logic: tabspace + magit + dirvish side panel for one repo
+(defun me/open-repo-workspace (repo-dir) ;> shared logic: tabspace + magit + dirvish side panel for one repo
   "Open REPO-DIR in its own tabspace, named after the repo directory.
 Shows a Magit status buffer with a Dirvish side panel rooted at the repo.
 Returns the tabspace name."
   (let* ((root (file-name-as-directory (expand-file-name repo-dir)))
          (name (file-name-nondirectory (directory-file-name root)))
-         (new? (not (member name (tabspaces--list-tabspaces)))))      ;. a fresh tab still carries the buffer inherited from tab-new below
+         (new? (not (member name (tabspaces--list-tabspaces))))) ;. a fresh tab still carries the buffer inherited from tab-new below
     (when (file-directory-p root)
       (tabspaces-switch-or-create-workspace name)
-      (delete-other-windows)                                          ;> the side window survives: no-delete-other-windows
+      (delete-other-windows) ;> the side window survives: no-delete-other-windows
       (let ((default-directory root))
-        (magit-status-setup-buffer root)                              ;> main window
-        (save-selected-window                                         ;> dirvish-side selects its window; keep focus on magit
-          (dirvish-side root)))                                      ;. sessions are per tab (dirvish--scopes), so each workspace keeps its own panel
-      (when new?                                                      ;. [fix]: tabspaces--tab-post-open-function resets the buffer-list right after
-        (tabspaces-reset-buffer-list)))                               ;. tab-new, before magit/dirvish-side replace the inherited buffer — that
-                                                                      ;. buffer stays "local" forever unless the reset runs again once we're done
+        (magit-status-setup-buffer root) ;> main window
+        (save-selected-window ;> dirvish-side selects its window; keep focus on magit
+          (dirvish-side root))) ;. sessions are per tab (dirvish--scopes), so each workspace keeps its own panel
+      (when new? ;. [fix]: tabspaces--tab-post-open-function resets the buffer-list right after
+        (tabspaces-reset-buffer-list))) ;. tab-new, before magit/dirvish-side replace the inherited buffer — that
+                                        ;. buffer stays "local" forever unless the reset runs again once we're done
     name))
 
-(defun me/setup-workspaces ()                                         ;> personal workspace main function
+(defun me/setup-workspaces () ;> personal workspace main function
   "Open a tabspace for each repo in `me/workspace-default-repos'."
   (interactive)
   (require 'dirvish-side)
@@ -112,7 +112,7 @@ Returns the tabspace name."
         (unless first-name (setq first-name name))))
     (when first-name (tabspaces-switch-or-create-workspace first-name))))
 
-(defun me/open-project-workspace (project-dir)                        ;> open a new repo in an isolated tab (Magit + Dirvish side panel)
+(defun me/open-project-workspace (project-dir) ;> open a new repo in an isolated tab (Magit + Dirvish side panel)
   "Open PROJECT-DIR in a new tabspace with magit and a dirvish side panel."
   (interactive (list (read-directory-name "Repo: " "~/repos/")))
   (require 'dirvish-side)
@@ -120,43 +120,43 @@ Returns the tabspace name."
   (let ((name (me/open-repo-workspace project-dir)))
     (message "Workspace: %s" name)))
 
-(defvar tabspaces--session-list)                                      ;> declared only — defined by tabspaces, used inside the functions below
-(defvar me/tabspaces--restored-side-panels nil                        ;> (tab-name . dir) pairs queued while a tabspaces session restores
+(defvar tabspaces--session-list) ;> declared only — defined by tabspaces, used inside the functions below
+(defvar me/tabspaces--restored-side-panels nil ;> (tab-name . dir) pairs queued while a tabspaces session restores
   "Dirvish side panels to rebuild once `tabspaces-restore-session' has recreated the tabs.")
 
-(defun me/tabspaces-side-panel-record (buffer)                        ;> session save: a dirvish side panel is stored as its directory only
+(defun me/tabspaces-side-panel-record (buffer) ;> session save: a dirvish side panel is stored as its directory only
   "Return a tabspaces session record for BUFFER when it is a dirvish side panel, else nil."
   (with-current-buffer buffer
     (when (and (derived-mode-p 'dired-mode)
-               (string-prefix-p " *SIDE :: " (buffer-name)))          ;. dirvish-side names its buffers like this (dirvish-side-root-conf)
+               (string-prefix-p " *SIDE :: " (buffer-name))) ;. dirvish-side names its buffers like this (dirvish-side-root-conf)
       (list :kind 'dirvish-side :dir default-directory))))
 
-(defun me/tabspaces-side-panel-defer (record)                         ;> session restore: queue the panel — the tab's windows aren't final yet
+(defun me/tabspaces-side-panel-defer (record) ;> session restore: queue the panel — the tab's windows aren't final yet
   "Queue RECORD's side panel for `me/tabspaces-restore-side-panels'.  Returns nil: no buffer now."
   (push (cons (alist-get 'name (tab-bar--current-tab)) (plist-get record :dir))
         me/tabspaces--restored-side-panels)
   nil)
 
-(defun me/tabspaces-restore-side-panels (&rest _)                     ;> after restore: rebuild the queued panels once the command loop is back
+(defun me/tabspaces-restore-side-panels (&rest _) ;> after restore: rebuild the queued panels once the command loop is back
   "Schedule `me/tabspaces--rebuild-side-panels' for the queued side panels.
 A timer rather than a direct call: at startup the restore runs inside `after-init-hook',
 where `dirvish-side' only yields a plain dired buffer (no session, no data, sentinel errors)."
   (when me/tabspaces--restored-side-panels
     (run-at-time 0 nil #'me/tabspaces--rebuild-side-panels)))
 
-(defun me/tabspaces--rebuild-side-panels ()                           ;> one fresh dirvish-side per tab that had one, then land on the first tab
+(defun me/tabspaces--rebuild-side-panels () ;> one fresh dirvish-side per tab that had one, then land on the first tab
   "Recreate the dirvish side panels queued during `tabspaces-restore-session'."
   (require 'dirvish-side)
   (let ((tabs (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs))))
     (pcase-dolist (`(,tab . ,dir) (nreverse me/tabspaces--restored-side-panels))
-      (when (and (member tab tabs) (file-directory-p dir))            ;. switching to an unknown tab name would create it
+      (when (and (member tab tabs) (file-directory-p dir)) ;. switching to an unknown tab name would create it
         (tab-bar-switch-to-tab tab)
-        (save-selected-window (dirvish-side dir))))                   ;. same call me/open-repo-workspace makes; keeps focus on the main window
+        (save-selected-window (dirvish-side dir)))) ;. same call me/open-repo-workspace makes; keeps focus on the main window
     (setq me/tabspaces--restored-side-panels nil)
-    (let ((first (cadr (car tabspaces--session-list))))               ;. restore ends on the last saved tab; C-c w lands on the first repo
+    (let ((first (cadr (car tabspaces--session-list)))) ;. restore ends on the last saved tab; C-c w lands on the first repo
       (when (member first tabs) (tab-bar-switch-to-tab first)))))
 
-(defun me/dirvish-side-resync (win file)                              ;> deferred half of me/dirvish-side-auto-jump-defer — see there
+(defun me/dirvish-side-resync (win file) ;> deferred half of me/dirvish-side-auto-jump-defer — see there
   "Reposition WIN on FILE and refresh the panel, called from the command loop."
   (when (window-live-p win)
     (with-selected-window win
@@ -165,7 +165,7 @@ where `dirvish-side' only yields a plain dired buffer (no session, no data, sent
         (dired-goto-file file))
       (dirvish--redisplay))))
 
-(defun me/dirvish-side-auto-jump-defer (&rest _)                      ;> [fix]: dirvish-side--auto-jump moves point before the command loop resumes
+(defun me/dirvish-side-auto-jump-defer (&rest _) ;> [fix]: dirvish-side--auto-jump moves point before the command loop resumes
   "Schedule `me/dirvish-side-resync' for the file just opened, deferred to the command loop.
 `:after' advice on `dirvish-side--auto-jump' (init.el, dirvish :config).
 Run from `buffer-list-update-hook', that function's own goto/expand leaves the
@@ -176,7 +176,7 @@ run synchronously outside the command loop don't fully take effect); same fix."
               (file buffer-file-name))
     (run-at-time 0 nil #'me/dirvish-side-resync win file)))
 
-(defun me/dirvish-side-open-or-expand ()                              ;> RET in the side panel expands directories in place, like TAB (dirvish-mode-map, init.el)
+(defun me/dirvish-side-open-or-expand () ;> RET in the side panel expands directories in place, like TAB (dirvish-mode-map, init.el)
   "In a dirvish-side session, toggle the subtree at point if it is a
 directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
   (interactive)
@@ -187,7 +187,7 @@ directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
       (dirvish-subtree-toggle)
     (dired-find-file)))
 
-(defun me/dirvish-mouse-open-or-expand (event)                        ;> mouse version of `me/dirvish-side-open-or-expand'
+(defun me/dirvish-mouse-open-or-expand (event) ;> mouse version of `me/dirvish-side-open-or-expand'
   "Move point to EVENT's position, then run `me/dirvish-side-open-or-expand'.
 Outside a side session, fall back to `dired-mouse-find-file-other-window'
 instead: dired's `mouse-face' + `[follow-link]' convention silently turns
@@ -201,13 +201,13 @@ click-opens-in-other-window behavior must stay unaffected."
       (me/dirvish-side-open-or-expand)
     (dired-mouse-find-file-other-window event)))
 
-(defun me/tabspaces-skip-terminal-record (buffer)                     ;> session save: terminals (eat, ghostel, claude) would only come back as empty shells
+(defun me/tabspaces-skip-terminal-record (buffer) ;> session save: terminals (eat, ghostel, claude) would only come back as empty shells
   "Return a no-op session record for BUFFER when it is a terminal, else nil."
   (with-current-buffer buffer
     (when (derived-mode-p 'eat-mode 'ghostel-mode)
       (list :kind 'skip :name (buffer-name)))))
 
-(defun me/tabspaces-strip-window-states (&rest _)                     ;> session restore: buffers only — saved layouts fight dirvish's side windows
+(defun me/tabspaces-strip-window-states (&rest _) ;> session restore: buffers only — saved layouts fight dirvish's side windows
   "Drop the window-state of every tab in `tabspaces--session-list' so only buffers are restored,
 then make the first saved tab the current one so the restore loop starts there: reuse it if it
 exists, rename a pristine startup tab, or open a fresh tab next to whatever is being edited."
@@ -215,14 +215,14 @@ exists, rename a pristine startup tab, or open a fresh tab next to whatever is b
     (when (cddr tab) (setcar (cddr tab) nil)))
   (when-let* ((first (cadr (car tabspaces--session-list)))
               (names (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs))))
-    (cond ((member first names) (tab-bar-switch-to-tab first))        ;. the loop parks a placeholder buffer in the current tab first — keep it out of the user's tab
-          ((and (= 1 (length names))                                  ;. fresh Emacs still on *scratch*: otherwise the initial tab is left behind with the placeholder
-                (equal (buffer-name (window-buffer)) "*scratch*"))    ;. window-buffer, not current-buffer — a server/minibuffer call must still see the real tab
+    (cond ((member first names) (tab-bar-switch-to-tab first)) ;. the loop parks a placeholder buffer in the current tab first — keep it out of the user's tab
+          ((and (= 1 (length names)) ;. fresh Emacs still on *scratch*: otherwise the initial tab is left behind with the placeholder
+                (equal (buffer-name (window-buffer)) "*scratch*")) ;. window-buffer, not current-buffer — a server/minibuffer call must still see the real tab
            (tab-bar-rename-tab first))
-          (t (let ((tab-bar-new-tab-choice "*scratch*")) (tab-bar-new-tab));. Emacs opened on a file: leave that tab alone
+          (t (let ((tab-bar-new-tab-choice "*scratch*")) (tab-bar-new-tab)) ;. Emacs opened on a file: leave that tab alone
              (tab-bar-rename-tab first)))))
 
-(defun me/open-terminal ()                                            ;> bash terminal at project root
+(defun me/open-terminal () ;> bash terminal at project root
   "Open (or reuse) an eat terminal at the current project's root.
 The buffer is renamed \"term: <project>\" so several projects can each keep one."
   (interactive)
@@ -233,7 +233,7 @@ The buffer is renamed \"term: <project>\" so several projects can each keep one.
                               (directory-file-name default-directory)))
                      t))))
 
-(defun me/claude-review-branch ()                                     ;> code review of the current branch via claude
+(defun me/claude-review-branch () ;> code review of the current branch via claude
   "Open Claude Code and send /code-review for the current branch."
   (interactive)
   (claude-code-ide)
@@ -241,7 +241,7 @@ The buffer is renamed \"term: <project>\" so several projects can each keep one.
                (lambda ()
                  (claude-code-ide-send-prompt "/code-review"))))
 
-(defun me/org-roam-capture-finalize ()                                ;> :finalize for org-roam-capture-templates, see init.el
+(defun me/org-roam-capture-finalize () ;> :finalize for org-roam-capture-templates, see init.el
   "Switch to the captured note and refresh `dirvish-side' to track it.
 `:jump-to-captured' alone jumps too late — after `org-capture-after-finalize-hook'
 already ran with the pre-capture buffer restored — so `dirvish-side-follow-mode'
@@ -258,8 +258,8 @@ directory (missing the just-created file) unless reverted by hand."
           (revert-buffer nil t)
           (dired-goto-file file))))))
 
-;;; ------------------------------------------------------------------- Version Control
-(defun my/pr-review-forge-at-point ()                                 ;> C-c C-r in a forge topic: open that MR in pr-review, else prompt for one
+;;; Version Control
+(defun my/pr-review-forge-at-point () ;> C-c C-r in a forge topic: open that MR in pr-review, else prompt for one
   "Open the current forge pull request in pr-review.
 Uses the `forge-pullreq-p' predicate and `slot-value' rather than
 `cl-typep'/`oref': neither cl-lib nor eieio is loaded when this file is."
@@ -273,23 +273,23 @@ Uses the `forge-pullreq-p' predicate and `slot-value' rather than
                (number (slot-value topic 'number)))
           (pr-review-open host owner name number))
       (call-interactively #'pr-review))))
-;;; ------------------------------------------------------------------- Org
-(defvar me/org-directory "~/org"                                      ;> root of every org path below (agenda/, roam/) — the real one is set in local.el
+;;; Org
+(defvar me/org-directory "~/org" ;> root of every org path below (agenda/, roam/) — the real one is set in local.el
   "Org root directory. Generic default; set yours in `local.el' (gitignored, see local.el.example).")
 
-(defun me/org-file (relative)                                         ;> RELATIVE under me/org-directory, expanded at call time — i.e. after local.el loaded
+(defun me/org-file (relative) ;> RELATIVE under me/org-directory, expanded at call time — i.e. after local.el loaded
   "Return RELATIVE expanded under `me/org-directory'."
   (expand-file-name relative me/org-directory))
 
-(defvar me/mermaid-cli-path (executable-find "mmdc")                  ;> mmdc for ob-mermaid; nil falls back to ob-mermaid's own PATH lookup; pin one in local.el
+(defvar me/mermaid-cli-path (executable-find "mmdc") ;> mmdc for ob-mermaid; nil falls back to ob-mermaid's own PATH lookup; pin one in local.el
   "Path to the mermaid CLI. Override in `local.el' to pin a specific version (see local.el.example).")
 
-(defvar me/org-agenda-categories                                      ;> (key label file has-agenda-view face) — file is relative to me/org-directory; drives capture
+(defvar me/org-agenda-categories ;> (key label file has-agenda-view face) — file is relative to me/org-directory; drives capture
   '(("w" "Work"  "agenda/work.org"  t   font-lock-function-name-face) ;. templates, refile targets, per-category agenda views, and the calendar source color
-    ("h" "Home"  "agenda/home.org"  t   font-lock-string-face)        ;. (a face, so it follows the theme)
+    ("h" "Home"  "agenda/home.org"  t   font-lock-string-face) ;. (a face, so it follows the theme)
     ("l" "Learn" "agenda/learn.org" nil font-lock-type-face)))
 
-(defun me/org-agenda-capture-entries ()                               ;> one "<Label> task" capture template per category
+(defun me/org-agenda-capture-entries () ;> one "<Label> task" capture template per category
   "Build an `org-capture-templates' entry for each `me/org-agenda-categories' item."
   (let (result)
     (dolist (cat me/org-agenda-categories (nreverse result))
@@ -303,7 +303,7 @@ Uses the `forge-pullreq-p' predicate and `slot-value' rather than
                :empty-lines 1)
          result)))))
 
-(defun me/org-agenda-refile-entries ()                                ;> refile target per category, plus the someday.org catch-all
+(defun me/org-agenda-refile-entries () ;> refile target per category, plus the someday.org catch-all
   "Build `org-refile-targets' entries for each `me/org-agenda-categories' item."
   (let (result)
     (dolist (cat me/org-agenda-categories)
@@ -311,7 +311,7 @@ Uses the `forge-pullreq-p' predicate and `slot-value' rather than
     (append (nreverse result)
             (list (cons (me/org-file "agenda/someday.org") '(:maxlevel . 1))))))
 
-(defun me/org-agenda-view-entries ()                                  ;> one "<Label> tasks" agenda view per category flagged with has-agenda-view
+(defun me/org-agenda-view-entries () ;> one "<Label> tasks" agenda view per category flagged with has-agenda-view
   "Build `org-agenda-custom-commands' entries for categories that want a dedicated view."
   (let (result)
     (dolist (cat me/org-agenda-categories (nreverse result))
@@ -329,21 +329,21 @@ Uses the `forge-pullreq-p' predicate and `slot-value' rather than
                          '(org-agenda-sorting-strategy '(priority-down todo-state-up))))))
            result))))))
 
-(defvar me/gcal-calendars nil                                         ;> (calendar-id file label face) — one Google calendar ↔ one org file; drives org-gcal-fetch-file-alist
+(defvar me/gcal-calendars nil ;> (calendar-id file label face) — one Google calendar ↔ one org file; drives org-gcal-fetch-file-alist
   "Empty by default — set in `local.el' (gitignored, see local.el.example).") ;. and its calfw source color, and the generated gcal capture templates (me/gcal-capture-entries)
 
-(defvar me/roam-work-templates nil                                    ;> spliced into org-roam-capture-templates (Org → Packages, init.el)
+(defvar me/roam-work-templates nil ;> spliced into org-roam-capture-templates (Org → Packages, init.el)
   "Empty by default — set in `local.el' (gitignored, see local.el.example).")
 
-(defun me/gcal-load-credentials ()                                    ;> org-gcal's OAuth client id/secret come from ~/.authinfo (machine org-gcal login ID password SECRET)
+(defun me/gcal-load-credentials () ;> org-gcal's OAuth client id/secret come from ~/.authinfo (machine org-gcal login ID password SECRET)
   "Set `org-gcal-client-id' and `org-gcal-client-secret' from `auth-sources'."
   (let ((entry (car (auth-source-search :host "org-gcal" :max 1 :require '(:user :secret)))))
     (unless entry
       (user-error "No \"machine org-gcal login <client-id> password <secret>\" line in %s" auth-sources))
-    (setq org-gcal-client-id (plist-get entry :user)                  ;. set before org-gcal.el loads: its last form registers the oauth2-auto provider from these
+    (setq org-gcal-client-id (plist-get entry :user) ;. set before org-gcal.el loads: its last form registers the oauth2-auto provider from these
           org-gcal-client-secret (auth-info-password entry))))
 
-(defun me/gcal-capture-entries ()                                     ;> one "Event — Google Calendar (<label>)" capture template per me/gcal-calendars entry
+(defun me/gcal-capture-entries () ;> one "Event — Google Calendar (<label>)" capture template per me/gcal-calendars entry
   "Build an `org-capture-templates' entry for each `me/gcal-calendars' item.
 First entry is bound to \"e\", second to \"E\" — matches the two-account
 \(personal/work) case this was written for; a third entry errors rather
@@ -364,7 +364,7 @@ than picking an arbitrary key."
                :empty-lines 1 :jump-to-captured t)
          result)))))
 
-(defun me/calendar-sources ()                                         ;> one calfw source per category and per Google calendar (its face color) + a grey one for the rest
+(defun me/calendar-sources () ;> one calfw source per category and per Google calendar (its face color) + a grey one for the rest
   "Build the `calfw-source' list for `me/calendar' from `me/org-agenda-categories' and `me/gcal-calendars'."
   (let ((rest (mapcar #'expand-file-name (org-agenda-files)))
         sources)
@@ -375,26 +375,26 @@ than picking an arbitrary key."
       (setq rest (delete file rest))
       (push (me/calendar--org-source (list file) label (me/calendar--color face))
             sources))
-    (when rest                                                        ;. inbox.org, someday.org… — anything dated there still shows up
+    (when rest ;. inbox.org, someday.org… — anything dated there still shows up
       (push (me/calendar--org-source rest "Other"
                                      (me/calendar--color 'font-lock-comment-face))
             sources))
     (nreverse sources)))
 
-(defun me/calendar--color (face)                                      ;> FACE's foreground as a color string; calfw needs a real color, not nil/unspecified
+(defun me/calendar--color (face) ;> FACE's foreground as a color string; calfw needs a real color, not nil/unspecified
   "Return the foreground color of FACE, falling back to gray in -nw/batch."
   (let ((color (face-foreground face nil t)))
     (if (and (stringp color) (color-defined-p color)) color "gray50")))
 
-(defun me/calendar--org-source (files name color)                     ;> [fix]: calfw-org-create-source, but items are calfw-event structs — calfw-blocks
+(defun me/calendar--org-source (files name color) ;> [fix]: calfw-org-create-source, but items are calfw-event structs — calfw-blocks
   "Return a calfw source over org FILES whose items are `calfw-event's." ;. (built against maccalfw) calls calfw-event-start-date on every item and dies on
-  (make-calfw-source                                                  ;. the plain strings calfw-org yields ("wrong-type-argument calfw-event")
+  (make-calfw-source ;. the plain strings calfw-org yields ("wrong-type-argument calfw-event")
    :name name :color color
    :data (lambda (begin end)
            (me/calendar--org-events
             (calfw-org--schedule-period-to-calendar files begin end)))))
 
-(defun me/calendar--org-events (contents)                             ;> ((date item…)… (periods (begin end item)…)) → (event… (periods event…))
+(defun me/calendar--org-events (contents) ;> ((date item…)… (periods (begin end item)…)) → (event… (periods event…))
   "Convert calfw-org CONTENTS into a flat list of `calfw-event's."
   (let (events periods)
     (dolist (entry contents)
@@ -405,46 +405,46 @@ than picking an arbitrary key."
           (if (calfw-org--tp item 'time-of-day)
               (push (me/calendar--org-event item (car entry)) events)
             (push (me/calendar--org-event item (car entry)) periods))))) ;. untimed = all-day: blocks only draws those as (one-day) periods —
-                                                                      ;. the timed path divides by a nil start time
+                                                                         ;. the timed path divides by a nil start time
     (nconc (nreverse events) (list (cons 'periods (nreverse periods))))))
 
-(defun me/calendar--org-event (item date &optional end-date)          ;> one agenda ITEM (propertized string) as a calfw-event on DATE
+(defun me/calendar--org-event (item date &optional end-date) ;> one agenda ITEM (propertized string) as a calfw-event on DATE
   "Build a `calfw-event' from agenda ITEM; times come from its text properties."
-  (let* ((tod (calfw-org--tp item 'time-of-day))                      ;. hhmm integer when the timestamp has a time, else nil (all-day)
-         (minutes (calfw-org--tp item 'duration))                     ;. set for <… 10:00-11:30> ranges
+  (let* ((tod (calfw-org--tp item 'time-of-day)) ;. hhmm integer when the timestamp has a time, else nil (all-day)
+         (minutes (calfw-org--tp item 'duration)) ;. set for <… 10:00-11:30> ranges
          (start (and tod (list (/ tod 100) (% tod 100))))
          (end (and start
                    (if minutes
                        (let ((m (+ (* 60 (car start)) (cadr start) (round minutes))))
                          (list (/ m 60) (% m 60)))
-                     start))))                                        ;. end = start is blocks' "no end": it then draws calfw-blocks-default-event-length (1 h)
-    (make-calfw-event :title item :start-date date :start-time start  ;. title keeps the string's props (org-marker…), so RET can still jump to the entry
-                      :end-date (or end-date date) :end-time end)))    ;. never nil: blocks' all-day deduction does date arithmetic on it
+                     start)))) ;. end = start is blocks' "no end": it then draws calfw-blocks-default-event-length (1 h)
+    (make-calfw-event :title item :start-date date :start-time start ;. title keeps the string's props (org-marker…), so RET can still jump to the entry
+                      :end-date (or end-date date) :end-time end))) ;. never nil: blocks' all-day deduction does date arithmetic on it
 
-(defun me/calendar ()                                                 ;> weekly time-block calendar of every agenda file, color per category
+(defun me/calendar () ;> weekly time-block calendar of every agenda file, color per category
   "Open the calfw calendar on the block-week view."
   (interactive)
-  (require 'calfw-org)                                                ;. the agenda collector; calfw-blocks requires calfw only
-  (require 'calfw-blocks)                                             ;. block views register on load
+  (require 'calfw-org) ;. the agenda collector; calfw-blocks requires calfw only
+  (require 'calfw-blocks) ;. block views register on load
   (calfw-open-calendar-buffer
    :contents-sources (me/calendar-sources)
-   :view 'block-week                                                  ;. default sorter (calfw-sorter-start-time) already orders events by start time
-   :custom-map (let ((map (make-sparse-keymap)))                      ;. calfw reparents this map onto calfw-calendar-mode-map, so no keymap-parent tricks here
-                 (define-key map (kbd "RET") #'calfw-org-onclick)     ;. jump to the org entry — blocks drop the per-item text keymap that used to do it
+   :view 'block-week ;. default sorter (calfw-sorter-start-time) already orders events by start time
+   :custom-map (let ((map (make-sparse-keymap))) ;. calfw reparents this map onto calfw-calendar-mode-map, so no keymap-parent tricks here
+                 (define-key map (kbd "RET") #'calfw-org-onclick) ;. jump to the org entry — blocks drop the per-item text keymap that used to do it
                  (define-key map [mouse-1] #'calfw-org-onclick)
                  (define-key map (kbd "q") #'bury-buffer)
                  (define-key map (kbd "SPC") #'calfw-org-open-agenda-day) ;. that day's org-agenda
                  map)))
 
-;;; ------------------------------------------------------------------- Org HTML Export
-(defvar me/ox-html-themes-dir                                         ;> where per-theme CSS/asset folders live
+;;; Org HTML Export
+(defvar me/ox-html-themes-dir ;> where per-theme CSS/asset folders live
   (expand-file-name "ox-html-themes/" user-emacs-directory))
 
-(defvar me/ox-html-theme-alist                                        ;> registry: theme name -> (css-file . postamble-logo-file-or-nil)
+(defvar me/ox-html-theme-alist ;> registry: theme name -> (css-file . postamble-logo-file-or-nil)
   `(("default" . (,(expand-file-name "default/style.css" me/ox-html-themes-dir) . nil))) ;. add your own themes in local.el (gitignored, see local.el.example)
   "Selectable HTML export themes. Pick one per file with `#+HTML_THEME: NAME'.")
 
-(defun me/org-html--file-to-data-uri (file)                           ;> image file → data: URI; mime from the extension, nil for anything else
+(defun me/org-html--file-to-data-uri (file) ;> image file → data: URI; mime from the extension, nil for anything else
   "Return FILE's contents as a base64 data: URI, or nil if unreadable."
   (when (file-readable-p file)
     (let* ((ext (downcase (or (file-name-extension file) "")))
@@ -460,14 +460,14 @@ than picking an arbitrary key."
           (insert-file-contents-literally file)
           (format "data:%s;base64,%s" mime (base64-encode-string (buffer-string) t)))))))
 
-(defun me/org-html--css-block (file)                                  ;> reads FILE and wraps its contents in a <style> tag
+(defun me/org-html--css-block (file) ;> reads FILE and wraps its contents in a <style> tag
   "Return FILE's contents wrapped in an HTML <style> block, or nil if unreadable."
   (when (file-readable-p file)
     (with-temp-buffer
       (insert-file-contents file)
       (format "<style>\n%s\n</style>" (buffer-string)))))
 
-(defun me/org-html-inline-images (text backend _info)                 ;> inlines local images (e.g. ob-mermaid output) as base64 — keeps the exported HTML a single self-contained file
+(defun me/org-html-inline-images (text backend _info) ;> inlines local images (e.g. ob-mermaid output) as base64 — keeps the exported HTML a single self-contained file
   "Replace <img src=\"local-file\"> with a base64 data URI when exporting to HTML."
   (when (org-export-derived-backend-p backend 'html)
     (replace-regexp-in-string
@@ -482,7 +482,7 @@ than picking an arbitrary key."
            whole)))
      text)))
 
-(defun me/org-html-apply-theme (backend)                              ;> reads #+HTML_THEME (defaults to "default") and sets org-html-head/org-html-postamble from the registry
+(defun me/org-html-apply-theme (backend) ;> reads #+HTML_THEME (defaults to "default") and sets org-html-head/org-html-postamble from the registry
   "Set `org-html-head' and `org-html-postamble' from the file's `#+HTML_THEME' keyword."
   (when (and (org-export-derived-backend-p backend 'html)
              (not (org-export-derived-backend-p backend 're-reveal)))

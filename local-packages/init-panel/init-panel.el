@@ -1,4 +1,4 @@
-;;; init-panel.el --- Read your Emacs init as a panel: folding, icons, aligned notes -*- lexical-binding: t -*-
+;;; init-panel.el --- Read your init as a panel: folding, icons, notes -*- lexical-binding: t -*-
 
 ;; Author: Mahatmus
 ;; Version: 0.2.0
@@ -20,7 +20,7 @@
 ;;   ;;; Section                 or   ;;; ------------------- Section
 ;;   ;;;; Subsection             or   ;;;; -                  Subsection
 ;;   (setq foo t) ;> why this is here
-;;                ;. continuation of the note
+;;                ;.  continuation of the note
 ;;   (setq bar t) ;> [fix]: C-c w reopens `my-workspaces' after a theme change
 ;;
 ;; `init-panel-mode' turns that into a panel, in any Emacs 29+, with
@@ -59,6 +59,7 @@
 (require 'eldoc)
 (require 'subr-x)
 (require 'seq)
+(require 'imenu)
 
 (defgroup init-panel nil
   "Read comment-outlined files as a panel: folding, icons, notes."
@@ -324,9 +325,9 @@ Fringe indicators stay.  Currently applies to Flymake."
 
 (defface init-panel-target
   '((t :inherit font-lock-constant-face :weight bold))
-  "Face of the first argument of a top-level form: the package in
-`(use-package NAME', the variable in `(setq VAR', the hook in `(add-hook HOOK',
-the key in `(keymap-global-set KEY'…  The thing the line is about.")
+  "Face of a top-level form's first argument, the thing the line is about.
+The package in `(use-package NAME', the variable in `(setq VAR', the hook
+in `(add-hook HOOK', the key in `(keymap-global-set KEY'.")
 
 (defface init-panel-package
   '((t :inherit init-panel-target))
@@ -759,7 +760,7 @@ A quote or #' prefix is skipped; a list argument does not match.")
         (concat (or guide " ") " " (if icon (propertize icon 'face 'init-panel-kind) " "))))))
 
 (defun init-panel--jit-margin (beg end)
-  "Refresh the left-margin overlays between BEG and END (a jit-lock function)."
+  "Refresh the overlays of the left margin between BEG and END (jit-lock)."
   (when (or init-panel-kind-margin init-panel-section-guide)
     (save-excursion
       (goto-char beg)
@@ -947,7 +948,8 @@ buffer text, so a fixed width keeps them next to the line numbers."
     (set-window-margins window (and (not init-panel--left-margin-set) (car (window-margins window))) nil)))
 
 (defun init-panel--refresh-windows (&optional frame-or-window)
-  "Recompute margins for every window showing an `init-panel-mode' buffer."
+  "Recompute margins for every window showing an `init-panel-mode' buffer.
+FRAME-OR-WINDOW limits the windows to one frame (a window names its frame)."
   (let ((frame (if (windowp frame-or-window) (window-frame frame-or-window) frame-or-window)))
     (dolist (w (window-list frame 'nomini))
       (when (buffer-local-value 'init-panel-mode (window-buffer w))
@@ -988,7 +990,8 @@ buffer text, so a fixed width keeps them next to the line numbers."
         (when notes (string-join (nreverse notes) " "))))))
 
 (defun init-panel--eldoc (callback &rest _)
-  "Eldoc function: the note of the form at point, per `init-panel-eldoc'."
+  "Eldoc function: pass the note of the form at point to CALLBACK.
+Only when `init-panel-eldoc' is `always'."
   (when (eq init-panel-eldoc 'always)
     (when-let* ((note (init-panel--note-at-point)))
       (funcall callback note :thing "note" :face 'init-panel-note))))
@@ -1017,6 +1020,13 @@ buffer text, so a fixed width keeps them next to the line numbers."
   "`add-log-current-defun-function' for `which-function-mode'."
   (init-panel--section-path))
 
+(defun init-panel--imenu-index ()
+  "Build the imenu index with folding suspended.
+`imenu-default-create-index-function' skips invisible definitions, which
+in a folded panel is most of them."
+  (let ((buffer-invisibility-spec nil))
+    (imenu-default-create-index-function)))
+
 (defun init-panel--header ()
   "Breadcrumb for the section point is in (see `init-panel-header-line')."
   (when-let* ((path (init-panel--section-path
@@ -1024,6 +1034,57 @@ buffer text, so a fixed width keeps them next to the line numbers."
                          (window-start (get-buffer-window (current-buffer)))
                        (point)))))
     (propertize (concat " " path) 'face 'init-panel-header)))
+
+;;;; Normalizing the source
+
+(defun init-panel--normalize-line (last-marker-col)
+  "Normalize the current line in place; return the note marker column or nil.
+Headings lose their typed rule; a note gets exactly one space before its
+marker, or, when the line has no code, is indented to LAST-MARKER-COL so
+continuations line up under the note above."
+  (let ((bol (line-beginning-position)) (eol (line-end-position)))
+    (cond
+     ((progn (goto-char bol) (looking-at init-panel--heading-re))
+      (when (or (> (match-end 3) (match-beginning 3)) (> (- (match-end 4) (match-beginning 4)) 0))
+        (replace-match (concat (match-string 1) " " (match-string 5)) t t))
+      nil)
+     ((and (progn (goto-char bol) (looking-at init-panel--note-re))
+           (let ((st (save-excursion (syntax-ppss (match-beginning 3)))))
+             (not (or (nth 3 st) (nth 4 st)))))
+      (let* ((code (string-trim-right (match-string 1)))
+             (note (match-string 3))
+             (col (if (string-empty-p code) (or last-marker-col 0) (1+ (length code)))))
+        (delete-region bol eol)
+        (insert (if (string-empty-p code) (make-string col ?\s) (concat code " ")) note)
+        col))
+     (t last-marker-col))))
+
+(defun init-panel-normalize-region (beg end)
+  "Strip typed layout between BEG and END: heading rules and note padding.
+The panel draws both, so the file only needs the markers.  Returns the
+number of lines changed."
+  (interactive "r")
+  (unless init-panel--heading-re (init-panel--build-regexps))
+  (let ((changed 0) last-col (end (copy-marker end)))
+    (save-excursion
+      (goto-char beg)
+      (beginning-of-line)
+      (while (< (point) end)
+        (let ((before (buffer-substring (line-beginning-position) (line-end-position))))
+          (setq last-col (init-panel--normalize-line last-col))
+          (unless (equal before (buffer-substring (line-beginning-position) (line-end-position)))
+            (setq changed (1+ changed))))
+        (forward-line 1)))
+    (set-marker end nil)
+    changed))
+
+(defun init-panel-normalize-buffer ()
+  "Strip the typed layout from the whole buffer.
+See `init-panel-normalize-region'."
+  (interactive)
+  (let ((n (init-panel-normalize-region (point-min) (point-max))))
+    (message "init-panel: %d line%s normalized" n (if (= n 1) "" "s"))
+    n))
 
 ;;;; Commands
 
@@ -1043,13 +1104,14 @@ buffer text, so a fixed width keeps them next to the line numbers."
   (outline-show-only-headings))
 
 (defvar init-panel-mode-map (make-sparse-keymap)
-  "Keymap for `init-panel-mode'.  Empty on purpose: bind what you like,
-e.g. `init-panel-show-headings', `init-panel-fold-subsections' and
-`init-panel-fold'.")
+  "Keymap for `init-panel-mode', empty on purpose.
+Bind what you like: `init-panel-show-headings',
+`init-panel-fold-subsections' and `init-panel-fold' are the candidates.")
 
 ;;;; Mode
 
 (defun init-panel--enable ()
+  "Turn the panel on in the current buffer."
   (init-panel--build-regexps)
   (init-panel--build-glyphs)
   (setq init-panel--point-line (and init-panel-raw-at-point (line-beginning-position)))
@@ -1098,8 +1160,9 @@ e.g. `init-panel-show-headings', `init-panel-fold-subsections' and
                 (append `(("Section" ,(concat "^" c "\\{3\\} -*[ \t]*" name) 1)
                           ("Subsection" ,(concat "^" c "\\{4\\} -*[ \t]*" name) 1))
                         (and init-panel-package-index
-                             '(("Packages" "^(use-package[ \t]+\\(\\S-+\\)" 1)))
+                             '(("Packages" "^(use-package[ \t]+\\([^ \t\n()]+\\)" 1)))
                         imenu-generic-expression)))
+  (setq-local imenu-create-index-function #'init-panel--imenu-index)
   (setq-local add-log-current-defun-function #'init-panel--current-section)
   (when init-panel-header-line
     (setq init-panel--saved-header-line header-line-format)
@@ -1114,6 +1177,7 @@ e.g. `init-panel-show-headings', `init-panel-fold-subsections' and
   (init-panel--refresh-summaries))
 
 (defun init-panel--disable ()
+  "Turn the panel off and restore the buffer."
   (font-lock-remove-keywords nil init-panel--keywords)
   (remove-hook 'post-command-hook #'init-panel--track-point t)
   (remove-hook 'post-command-hook #'init-panel--guide-update t)
@@ -1140,6 +1204,7 @@ e.g. `init-panel-show-headings', `init-panel-fold-subsections' and
       (flymake-mode -1)
       (flymake-mode 1)))
   (kill-local-variable 'imenu-generic-expression)
+  (kill-local-variable 'imenu-create-index-function)
   (kill-local-variable 'add-log-current-defun-function)
   (kill-local-variable 'outline-default-state)
   (kill-local-variable 'outline-minor-mode-cycle)
