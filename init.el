@@ -804,7 +804,7 @@
   :custom ;. its calfw-blocks-org.el is NOT loaded: it advises calfw-org-get-timerange with the wrong arity
   (calfw-blocks-initial-visible-time '(7 0))) ;. scroll so the day starts at 07:00 (hours outside 9–17 shrink to one line)
 
-(use-package org-gcal ;> two-way Google Calendar ↔ org: events land in gcal-*.org, so C-c a and C-c C show them
+(use-package org-gcal ;> two-way Google Calendar ↔ org: events land in gcal-*.org, so they show up under C-c a and C-c C
   :commands (org-gcal-sync
              org-gcal-fetch
              org-gcal-post-at-point
