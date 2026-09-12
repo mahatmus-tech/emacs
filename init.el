@@ -464,7 +464,7 @@
    (expand-file-name "var/ghostel/" user-emacs-directory)) ;. native module outside straight's tree — a rebuild would delete it while loaded
   (ghostel-module-auto-install 'download)) ;. prebuilt binary from github releases on first use, no zig toolchain or prompt
 
-(use-package claude-code-ide ;> Claude Code with MCP + multi-session support
+(use-package claude-code-ide    ;> Claude Code with MCP + multi-session support
   :straight
   (:type git :host github :repo "manzaltu/claude-code-ide.el")
   :bind
