@@ -165,6 +165,8 @@ export BAR=2 #> [perf]: bar is fast
     (should (equal (keys "smart C-g: closes") '("C-g")))
     (should (equal (keys "M-S-<up> adds; press <f5> or <return>") '("M-S-<up>" "<f5>" "<return>")))
     (should (equal (keys "RET in the panel, like TAB") '("RET" "TAB")))
+    (should (equal (keys "so C-c a and C-c W restores") '("C-c a" "C-c W")))
+    (should (equal (keys "C-c C-e h h exports; C-x 8 RET too") '("C-c C-e h h" "C-x 8 RET")))
     (should (null (keys "has-agenda-view face (css-file . x) the *-ts-modes")))
     (should (null (keys "password SECRET; a <style> tag; <label>")))))
 

@@ -553,7 +553,8 @@ Skips markers inside strings or other comments."
    ;; a chord: modifiers + one key (a char, a word, or <named>), then up to
    ;; four more keys that are chords or single characters (C-x o o o)
    "\\|\\(?:[CMSsHA]-\\)+\\(?:<[[:alnum:]-]+>\\|[[:alnum:]_-]+\\|[^][ \t()`'\"]\\)"
-   "\\(?: \\(?:\\(?:[CMSsHA]-\\)+\\(?:<[[:alnum:]-]+>\\|[[:alnum:]_-]+\\|[^][ \t()`'\"]\\)\\|[^][ \t,;()`'\".:]\\)\\)\\{0,4\\}"
+   "\\(?: \\(?:\\(?:[CMSsHA]-\\)+\\(?:<[[:alnum:]-]+>\\|[[:alnum:]_-]+\\|[^][ \t()`'\"]\\)"
+   "\\|TAB\\|RET\\|SPC\\|DEL\\|ESC\\|<[[:alnum:]-]+>\\|[^][ \t,;()`'\".:]\\)\\)\\{0,4\\}"
    ;; named keys
    "\\|<\\(?:f[0-9]+\\|return\\|tab\\|backtab\\|escape\\|delete\\|backspace\\|insert\\|home\\|end\\|prior\\|next"
    "\\|up\\|down\\|left\\|right\\|menu\\|mouse-[0-9]\\|wheel-\\(?:up\\|down\\)\\)>"
@@ -613,7 +614,9 @@ Only adds properties; the caller has already applied the base face."
         (goto-char beg)
         (while (re-search-forward init-panel--key-re end t)
           (let ((kb (match-beginning 1)) (ke (match-end 1)))
-            ;; trim trailing single-char "keys" that ran into a word (C-c C-r in)
+            ;; trim trailing single-char "keys" that ran into a word (C-c C-r in);
+            ;; a lone capital (C-c W) stays a key — the rare "C-c C show" reads
+            ;; wrong, but guessing would drop real bindings
             (while (and (> ke (+ kb 3))
                         (not (init-panel--key-isolated-p kb ke))
                         (eq (char-after (- ke 2)) ?\s))
