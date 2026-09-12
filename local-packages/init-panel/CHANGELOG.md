@@ -14,6 +14,7 @@ First version worth a name. Extracted from a personal Emacs config.
 - Folded `use-package` keyword summaries; `Section › Subsection` header line
 - Flymake end-of-line text hidden while reading
 - Three fold states; empty keymap on purpose
+- Key detection only matches whole words (`has-agenda-view`, `SECRET`, `<style>` are not keys); `M-x cmd`, `C-x o o o`, `M-S-<up>` are
 - Marker faces: `;>` accent, `;.` secondary, `;;`/`;` quiet — markers stand apart from note text
 - `init-panel-normalize-buffer` strips hand-typed layout; imenu index sees through folding
 - ERT test suite, Makefile (test / compile / checkdoc / lint)

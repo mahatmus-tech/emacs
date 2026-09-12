@@ -546,10 +546,31 @@ Skips markers inside strings or other comments."
   (and (eq init-panel-style 'margin) (not init-panel--inline)))
 
 (defconst init-panel--key-re
-  (concat "\\(?:\\(?:[CMSsHA]-\\)+[^][ \t,;()`'\"]+"
-          "\\(?: \\(?:[CMSsHA]-\\)*[^][ \t,;()`'\"]+\\)\\{0,2\\}"
-          "\\|M-x [^ \t,;()`'\"]+\\|<[a-z0-9-]+>\\|TAB\\|RET\\|SPC\\|DEL\\|ESC\\)")
-  "Regexp for key descriptions inside a note.")
+  (concat
+   "\\("
+   ;; M-x command (before the chord branch, which would stop at M-x)
+   "M-x [[:alnum:]_/:-]+"
+   ;; a chord: modifiers + one key (a char, a word, or <named>), then up to
+   ;; four more keys that are chords or single characters (C-x o o o)
+   "\\|\\(?:[CMSsHA]-\\)+\\(?:<[[:alnum:]-]+>\\|[[:alnum:]_-]+\\|[^][ \t()`'\"]\\)"
+   "\\(?: \\(?:\\(?:[CMSsHA]-\\)+\\(?:<[[:alnum:]-]+>\\|[[:alnum:]_-]+\\|[^][ \t()`'\"]\\)\\|[^][ \t,;()`'\".:]\\)\\)\\{0,4\\}"
+   ;; named keys
+   "\\|<\\(?:f[0-9]+\\|return\\|tab\\|backtab\\|escape\\|delete\\|backspace\\|insert\\|home\\|end\\|prior\\|next"
+   "\\|up\\|down\\|left\\|right\\|menu\\|mouse-[0-9]\\|wheel-\\(?:up\\|down\\)\\)>"
+   "\\|TAB\\|RET\\|SPC\\|DEL\\|ESC"
+   "\\)")
+  "Regexp for key descriptions inside a note; group 1 is the key text.
+Matches are only kept when `init-panel--key-isolated-p' says the text stands
+alone: a chord must start at a word edge (so `has-agenda-view' is not
+`s-a…') and end before a space or punctuation (so `C-c C-r in' stops at
+`C-r', and `RET' inside `SECRET' does not count).")
+
+(defun init-panel--key-isolated-p (beg end)
+  "Non-nil when the key text between BEG and END is a whole word."
+  (and (or (= beg (point-min))
+           (not (string-match-p "[[:alnum:]_/<>-]" (string (char-before beg)))))
+       (or (= end (point-max))
+           (not (string-match-p "[[:alnum:]_/-]" (string (char-after end)))))))
 
 (defconst init-panel--tag-re "[ \t]*\\(\\[\\([a-zA-Z][a-zA-Z0-9-]*\\)\\]:?\\)"
   "Regexp for a `[tag]:' prefix at the start of a note.")
@@ -591,8 +612,15 @@ Only adds properties; the caller has already applied the base face."
       (when init-panel-highlight-keys
         (goto-char beg)
         (while (re-search-forward init-panel--key-re end t)
-          (add-face-text-property (match-beginning 0) (match-end 0)
-                                  (if (facep 'help-key-binding) 'help-key-binding 'bold))))
+          (let ((kb (match-beginning 1)) (ke (match-end 1)))
+            ;; trim trailing single-char "keys" that ran into a word (C-c C-r in)
+            (while (and (> ke (+ kb 3))
+                        (not (init-panel--key-isolated-p kb ke))
+                        (eq (char-after (- ke 2)) ?\s))
+              (setq ke (- ke 2)))
+            (when (init-panel--key-isolated-p kb ke)
+              (add-face-text-property kb ke (if (facep 'help-key-binding) 'help-key-binding 'bold))
+              (goto-char ke)))))
       (when init-panel-link-symbols
         (goto-char beg)
         (while (re-search-forward init-panel--backquote-re end t)
