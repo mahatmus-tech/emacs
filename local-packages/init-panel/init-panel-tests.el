@@ -134,6 +134,16 @@ export BAR=2 #> [perf]: bar is fast
     (re-search-forward ";\\.")
     (should (equal (get-text-property (- (point) 2) 'display) "↳"))))
 
+(ert-deftest init-panel-marker-faces ()
+  (init-panel-tests--with-buffer emacs-lisp-mode init-panel-tests--elisp
+    (init-panel-tests--goto "(setq ring-bell-function")
+    (re-search-forward ";>")
+    (should (eq (get-text-property (- (point) 2) 'face) 'init-panel-marker))
+    (init-panel-tests--goto ";. continuation")
+    (re-search-forward ";\\.")
+    (should (eq (get-text-property (- (point) 2) 'face) 'init-panel-marker-continuation))
+    (should (eq (init-panel-tests--prop ";; TAB on heading" 0 'face) 'init-panel-marker-prose))))
+
 (ert-deftest init-panel-note-wide-line-not-stretched ()
   (init-panel-tests--with-buffer emacs-lisp-mode init-panel-tests--elisp
     (init-panel-tests--goto "wide line")

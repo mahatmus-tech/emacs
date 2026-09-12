@@ -14,6 +14,7 @@ First version worth a name. Extracted from a personal Emacs config.
 - Folded `use-package` keyword summaries; `Section › Subsection` header line
 - Flymake end-of-line text hidden while reading
 - Three fold states; empty keymap on purpose
+- Marker faces: `;>` accent, `;.` secondary, `;;`/`;` quiet — markers stand apart from note text
 - `init-panel-normalize-buffer` strips hand-typed layout; imenu index sees through folding
 - ERT test suite, Makefile (test / compile / checkdoc / lint)
 - `init-panel-focus`: edit one block in an indirect buffer over the panel (child frame or window)
