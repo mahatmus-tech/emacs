@@ -1189,25 +1189,39 @@ A form's trailing note continuations (code-less `;.' lines) are included."
           (forward-line 1))
         (cons beg (point))))))
 
+(defun init-panel--focus-title (beg end)
+  "Title for the block BEG..END: its first line, without the note."
+  (let* ((line (buffer-substring-no-properties beg (min end (save-excursion (goto-char beg) (line-end-position)))))
+         (line (if (and init-panel--note-re (string-match init-panel--note-re line))
+                   (match-string 1 line)
+                 line)))
+    (truncate-string-to-width (string-trim line) 60 nil nil "…")))
+
 (defun init-panel--focus-buffer (beg end)
-  "An indirect buffer of the current buffer, narrowed to BEG..END, ready to edit."
+  "An indirect buffer of the current buffer, narrowed to BEG..END, ready to edit.
+The clone is a plain buffer: no panel, no margins, no mode line — just the
+block, so the whole frame is room to work."
   (let* ((base (current-buffer))
-         (title (string-trim (buffer-substring-no-properties beg (min end (line-end-position)))))
-         (name (generate-new-buffer-name (format "*focus: %s*" (truncate-string-to-width title 40 nil nil "…"))))
+         (title (init-panel--focus-title beg end))
+         (name (generate-new-buffer-name (format "*focus: %s*" title)))
          (clone (make-indirect-buffer base name t)))
     (with-current-buffer clone
+      (when (bound-and-true-p init-panel-mode) (init-panel-mode -1))
       (narrow-to-region beg end)
       (goto-char (point-min))
       (when (bound-and-true-p outline-minor-mode) (outline-show-all))
-      (when (bound-and-true-p init-panel-header-line)
-        (setq header-line-format (propertize (format " %s — C-c C-c to return" title) 'face 'init-panel-header)))
+      (setq header-line-format
+            (propertize (format " %s   %s" title
+                                (substitute-command-keys "\\<init-panel-focus-mode-map>\\[init-panel-focus-close] returns"))
+                        'face 'init-panel-header))
+      (setq mode-line-format nil)
       (setq init-panel--focus-base base)
       (init-panel-focus-mode 1))
     clone))
 
 (defun init-panel--focus-show (clone lines)
   "Display CLONE, sized for LINES, in a child frame or a window below."
-  (let ((height (min init-panel-focus-max-height (+ lines 2))))
+  (let ((height (max 6 (min init-panel-focus-max-height (+ lines 2)))))
     (if (and init-panel-focus-frame (display-graphic-p))
         (let* ((parent (selected-frame))
                (pw (frame-width parent))
@@ -1221,12 +1235,16 @@ A form's trailing note continuations (code-less `;.' lines) are included."
                                     (top . ,(* (frame-char-height parent) 3))
                                     (internal-border-width . 2)
                                     (vertical-scroll-bars . nil)
+                                    (left-fringe . 8) (right-fringe . 8)
                                     (menu-bar-lines . 0) (tool-bar-lines . 0) (tab-bar-lines . 0)
                                     (init-panel-focus . t)))))
-          (set-window-buffer (frame-root-window frame) clone)
-          (set-window-dedicated-p (frame-root-window frame) t)
+          (let ((win (frame-root-window frame)))
+            (set-window-buffer win clone)
+            (set-window-margins win nil nil)
+            (set-window-dedicated-p win t))
           (select-frame-set-input-focus frame))
-      (pop-to-buffer clone `((display-buffer-below-selected) (window-height . ,height))))))
+      (pop-to-buffer clone `((display-buffer-below-selected) (window-height . ,height)))
+      (set-window-margins (selected-window) nil nil))))
 
 (defun init-panel-focus ()
   "Edit the block at point in its own buffer, over the folded panel.

@@ -376,6 +376,10 @@ export BAR=2 #> [perf]: bar is fast
         (should (eq (buffer-base-buffer clone) base))
         (with-current-buffer clone
           (should init-panel-focus-mode)
+          (should-not init-panel-mode)
+          (should (null mode-line-format))
+          (should (string-match-p "(setq ring-bell-function 'ignore)" (substring-no-properties header-line-format)))
+          (should-not (string-match-p ";>" (substring-no-properties header-line-format)))
           (should (= (point-min) (line-beginning-position)))
           (should (string-prefix-p "(setq ring-bell-function" (buffer-substring-no-properties (point-min) (point-max))))
           (goto-char (point-max))
