@@ -19,4 +19,4 @@ First version worth a name. Extracted from a personal Emacs config.
 - Marker faces: `;>` accent, `;.` secondary, `;;`/`;` quiet — markers stand apart from note text
 - `init-panel-normalize-buffer` strips hand-typed layout; imenu index sees through folding
 - ERT test suite, Makefile (test / compile / checkdoc / lint)
-- `init-panel-focus`: edit one block in an indirect buffer over the panel (child frame or window)
+- `init-panel-focus`: edit one block in an indirect buffer over the panel (child frame or window); `C-c C-c` done, `C-c C-k` discard

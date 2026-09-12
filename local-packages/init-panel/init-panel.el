@@ -1163,9 +1163,13 @@ Otherwise (and always on text terminals) it opens in a window below."
 (defvar init-panel-focus-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-c") #'init-panel-focus-close)
-    (define-key map (kbd "C-c C-k") #'init-panel-focus-close)
+    (define-key map (kbd "C-c C-k") #'init-panel-focus-abort)
     map)
   "Keymap of `init-panel-focus-mode'.")
+
+(defvar-local init-panel--focus-undo-mark nil
+  "Head of `buffer-undo-list' when the focus buffer opened.
+`init-panel-focus-abort' undoes back to it.")
 
 (define-minor-mode init-panel-focus-mode
   "Editing one block of a panel in its own buffer; \\[init-panel-focus-close] returns."
@@ -1211,10 +1215,12 @@ block, so the whole frame is room to work."
       (goto-char (point-min))
       (when (bound-and-true-p outline-minor-mode) (outline-show-all))
       (setq header-line-format
-            (propertize (format " %s   %s" title
-                                (substitute-command-keys "\\<init-panel-focus-mode-map>\\[init-panel-focus-close] returns"))
+            (propertize (format " %s   C-c C-c done · C-c C-k discard" title)
                         'face 'init-panel-header))
       (setq mode-line-format nil)
+      (when (bound-and-true-p flymake-mode) (flymake-mode -1))
+      (setq-local flymake-diagnostic-functions nil) ; no checker in a scratch view of a block (also silences the "untrusted content" notice)
+      (setq init-panel--focus-undo-mark buffer-undo-list)
       (setq init-panel--focus-base base)
       (init-panel-focus-mode 1))
     clone))
@@ -1258,6 +1264,15 @@ is shared, nothing is copied back.  \\[init-panel-focus-close] returns."
          (clone (init-panel--focus-buffer (car bounds) (cdr bounds))))
     (init-panel--focus-show clone lines)
     clone))
+
+(defun init-panel-focus-abort ()
+  "Undo everything done in this focus buffer, then close it."
+  (interactive)
+  (let ((mark init-panel--focus-undo-mark)
+        (pending buffer-undo-list))
+    (while (and (consp pending) (not (eq pending mark)))
+      (setq pending (primitive-undo 1 pending))))
+  (init-panel-focus-close))
 
 (defun init-panel-focus-close ()
   "Close the focus buffer and go back to the panel it came from."

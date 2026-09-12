@@ -108,7 +108,7 @@ Unicode or the literal text, never a tofu box.
 - `init-panel-toggle-style` — column ↔ right margin, per buffer.
 - `init-panel-normalize-buffer` / `init-panel-normalize-region` — strip typed layout (heading dashes, note padding) from a file that was aligned by hand; the panel draws it anyway.
 - `init-panel-describe-at-point` — what `RET` on a link runs.
-- `init-panel-focus` / `init-panel-focus-close` — open the section or form at point in an indirect buffer (child frame on GUI, window in a terminal); `C-c C-c` returns. Edits are the file's own text: nothing is copied or synced back, undo is shared.
+- `init-panel-focus` / `init-panel-focus-close` / `init-panel-focus-abort` — open the section or form at point in an indirect buffer (child frame on GUI, window in a terminal); `C-c C-c` returns, `C-c C-k` undoes what you did there and returns. Edits are the file's own text: nothing is copied or synced back, undo is shared.
 
 ## How it is built
 
