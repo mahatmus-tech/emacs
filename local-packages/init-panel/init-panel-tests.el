@@ -411,6 +411,24 @@ export BAR=2 #> [perf]: bar is fast
       (remove-hook 'hack-local-variables-hook #'init-panel-maybe-enable)
       (delete-directory dir t))))
 
+(ert-deftest init-panel-focus-abort-undoes ()
+  (init-panel-tests--with-buffer emacs-lisp-mode init-panel-tests--elisp
+    (buffer-enable-undo)
+    (let ((init-panel-focus-frame nil) (base (current-buffer)) (before (buffer-string)))
+      (init-panel-tests--goto "(setq ring-bell-function")
+      (let ((clone (init-panel-focus)))
+        (with-current-buffer clone
+          (buffer-enable-undo)
+          (setq init-panel--focus-undo-mark buffer-undo-list)
+          (goto-char (point-max)) (insert ";; one\n")
+          (undo-boundary)
+          (goto-char (point-max)) (insert ";; two\n")
+          (undo-boundary)
+          (should (string-match-p ";; two" (buffer-string)))
+          (init-panel-focus-abort))
+        (should-not (buffer-live-p clone))
+        (should (equal (buffer-string) before))))))
+
 ;;;; Teardown
 
 (ert-deftest init-panel-disable-restores-buffer ()
