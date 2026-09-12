@@ -45,13 +45,28 @@ Nothing to learn beyond two markers:
 ;; straight
 (use-package init-panel
   :straight (:host github :repo "mahatmus-tech/init-panel")
-  :hook (emacs-lisp-mode . init-panel-mode)
+  :hook (hack-local-variables . init-panel-maybe-enable)   ; enable where a file asks for it
+  ;; only when loading from a plain directory (no autoloads): declare the
+  ;; file-local variable safe before any file is visited
+  ;; :init (put 'init-panel 'safe-local-variable #'booleanp)
   :bind (:map init-panel-mode-map
               ("C-c C-t" . init-panel-show-headings)     ; every heading and top-level form
               ("C-c C-s" . init-panel-fold-subsections)  ; sections + subsections
               ("C-c C-y" . init-panel-fold)              ; sections only (the open-file state)
               ("C-c C-o" . init-panel-focus)))           ; edit the block at point in a popup
 ```
+
+Then opt each file in with a file-local variable on its first line — the
+panel never turns itself on anywhere else, so an ordinary `.el` stays
+ordinary:
+
+```elisp
+;;; init.el --- my config -*- lexical-binding: t; init-panel: t -*-
+```
+
+(or a local-variables block at the end; `init-panel` is declared safe for
+booleans, so Emacs won't ask). Works in any major mode: `# -*- init-panel: t -*-`
+in a `.zshrc` does the same.
 
 The mode map is empty on purpose; bind what you like. `TAB` / `S-TAB` on a
 heading cycle it / the whole buffer — that is Emacs' own

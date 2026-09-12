@@ -1,4 +1,4 @@
-;;; custom.el --- Mahatmus Emacs Configuration -*- lexical-binding: t -*-
+;;; custom.el --- Mahatmus Emacs Configuration -*- lexical-binding: t; init-panel: t -*-
 ;;; Outline
 (defun outline-copy-visible (beg end) ;> copy helper — folding, faces and notes come from init-panel (init.el)
   "Copy only visible text in region, skipping folded outline sections."

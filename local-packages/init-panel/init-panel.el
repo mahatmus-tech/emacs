@@ -49,6 +49,13 @@
 ;; display can't show a glyph (`char-displayable-p').  Icons default to
 ;; Nerd Font codepoints; without such a font you get `◆', `◇' and ASCII.
 ;;
+;; Turn it on per file, never globally: an ordinary .el must look ordinary.
+;; Put the file-local variable in the first line of the files you read this
+;; way (your init, custom.el, a dotfile), and hook the enabler once:
+;;
+;;   ;;; init.el --- my config -*- lexical-binding: t; init-panel: t -*-
+;;   (add-hook 'hack-local-variables-hook #'init-panel-maybe-enable)
+;;
 ;; The mode keeps its keymap empty.  Suggested bindings, in your init:
 ;;
 ;;   (define-key init-panel-mode-map (kbd "C-c C-t") #'init-panel-show-headings)
@@ -1375,6 +1382,30 @@ Bind what you like: `init-panel-show-headings',
   (kill-local-variable 'outline-minor-mode-use-buttons)
   (outline-minor-mode -1)
   (font-lock-flush))
+
+;;;; Opt-in per file
+
+;;;###autoload
+(defvar-local init-panel nil
+  "Non-nil in files that want `init-panel-mode'.
+Set it as a file-local variable in the first line:
+
+  ;;; init.el --- my config -*- lexical-binding: t; init-panel: t -*-
+
+or in a local-variables block at the end of the file.  Safe for any
+boolean value, so Emacs never asks.  `init-panel-maybe-enable' (on
+`hack-local-variables-hook') turns the mode on where it is non-nil, and
+never anywhere else — an ordinary .el file is left alone.")
+;;;###autoload
+(put 'init-panel 'safe-local-variable #'booleanp)
+
+;;;###autoload
+(defun init-panel-maybe-enable ()
+  "Turn on `init-panel-mode' when the file-local variable `init-panel' is set.
+Meant for `hack-local-variables-hook', which runs after a file's local
+variables are read; nothing happens in files that don't set it."
+  (when (and init-panel (not (bound-and-true-p init-panel-mode)))
+    (init-panel-mode 1)))
 
 ;;;###autoload
 (define-minor-mode init-panel-mode

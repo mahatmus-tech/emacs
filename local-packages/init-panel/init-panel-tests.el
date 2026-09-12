@@ -385,6 +385,28 @@ export BAR=2 #> [perf]: bar is fast
         (should (eq (current-buffer) base))
         (should (string-match-p ";; edited in focus" (buffer-string)))))))
 
+;;;; Opt-in
+
+(ert-deftest init-panel-opt-in-via-file-local ()
+  (let ((dir (make-temp-file "init-panel-" t)))
+    (add-hook 'hack-local-variables-hook #'init-panel-maybe-enable)
+    (unwind-protect
+        (let ((on (expand-file-name "on.el" dir))
+              (off (expand-file-name "off.el" dir)))
+          (with-temp-file on (insert ";;; on.el --- x -*- lexical-binding: t; init-panel: t -*-\n;;; Core\n(setq a 1) ;> why\n"))
+          (with-temp-file off (insert ";;; off.el --- x -*- lexical-binding: t -*-\n;;; Core\n(setq a 1) ;> why\n"))
+          (with-current-buffer (find-file-noselect on)
+            (should init-panel)
+            (should init-panel-mode)
+            (kill-buffer))
+          (with-current-buffer (find-file-noselect off)
+            (should-not init-panel)
+            (should-not init-panel-mode)
+            (should (null (next-single-property-change (point-min) 'display)))
+            (kill-buffer)))
+      (remove-hook 'hack-local-variables-hook #'init-panel-maybe-enable)
+      (delete-directory dir t))))
+
 ;;;; Teardown
 
 (ert-deftest init-panel-disable-restores-buffer ()

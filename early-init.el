@@ -1,4 +1,4 @@
-;;; early-init.el --- Mahatmus Emacs Configuration -*- lexical-binding: t -*-
+;;; early-init.el --- Mahatmus Emacs Configuration -*- lexical-binding: t; init-panel: t -*-
 ;;; Visuals
 (setq inhibit-startup-screen t) ;> disables start-up splash screen
 (setq inhibit-startup-message t) ;> disables start-up message
