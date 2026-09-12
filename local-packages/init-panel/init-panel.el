@@ -561,9 +561,9 @@ Skips markers inside strings or other comments."
    "\\)")
   "Regexp for key descriptions inside a note; group 1 is the key text.
 Matches are only kept when `init-panel--key-isolated-p' says the text stands
-alone: a chord must start at a word edge (so `has-agenda-view' is not
-`s-a…') and end before a space or punctuation (so `C-c C-r in' stops at
-`C-r', and `RET' inside `SECRET' does not count).")
+alone: a chord must start at a word edge (so `has-agenda-view' is not a
+Super chord), a trailing word is not swallowed as a key, and a key name
+inside a longer word (RET inside SECRET) does not count.")
 
 (defun init-panel--key-isolated-p (beg end)
   "Non-nil when the key text between BEG and END is a whole word."
