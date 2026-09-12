@@ -144,6 +144,30 @@ export BAR=2 #> [perf]: bar is fast
     (should (eq (get-text-property (- (point) 2) 'face) 'init-panel-marker-continuation))
     (should (eq (init-panel-tests--prop ";; TAB on heading" 0 'face) 'init-panel-marker-prose))))
 
+(ert-deftest init-panel-key-detection ()
+  "Keys are found as whole words; identifiers and prose never look like keys."
+  (cl-flet ((keys (text)
+              (with-temp-buffer
+                (insert text)
+                (let ((init-panel-highlight-keys t) (init-panel-link-symbols nil))
+                  (init-panel--decorate (point-min) (point-max)))
+                (let (r (p (point-min)))
+                  (while (setq p (text-property-not-all p (point-max) 'face nil))
+                    (let ((e (next-single-property-change p 'face nil (point-max))))
+                      (when (memq 'help-key-binding (ensure-list (get-text-property p 'face)))
+                        (push (buffer-substring-no-properties p e) r))
+                      (setq p e)))
+                  (nreverse r)))))
+    (should (equal (keys "C-x o o o, C-x t o o: repeat") '("C-x o o o" "C-x t o o")))
+    (should (equal (keys "C-c C-r in a forge topic") '("C-c C-r")))
+    (should (equal (keys "M-x foo-bar then C-c w") '("M-x foo-bar" "C-c w")))
+    (should (equal (keys "keys C-x C-f, C-g and M-;") '("C-x C-f" "C-g" "M-;")))
+    (should (equal (keys "smart C-g: closes") '("C-g")))
+    (should (equal (keys "M-S-<up> adds; press <f5> or <return>") '("M-S-<up>" "<f5>" "<return>")))
+    (should (equal (keys "RET in the panel, like TAB") '("RET" "TAB")))
+    (should (null (keys "has-agenda-view face (css-file . x) the *-ts-modes")))
+    (should (null (keys "password SECRET; a <style> tag; <label>")))))
+
 (ert-deftest init-panel-note-wide-line-not-stretched ()
   (init-panel-tests--with-buffer emacs-lisp-mode init-panel-tests--elisp
     (init-panel-tests--goto "wide line")
