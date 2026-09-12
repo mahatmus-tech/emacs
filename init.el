@@ -1,4 +1,4 @@
-;;; init.el --- Mahatmus Emacs Configuration -*- lexical-binding: t -*-
+;;; init.el --- Mahatmus Emacs Configuration -*- lexical-binding: t; init-panel: t -*-
 ;;; Tips
 ;;;; Navigation
 ;; TAB    on heading  → cycle that section (hide → children → expand)
@@ -174,10 +174,12 @@
   (doom-modeline-buffer-file-name-style 'relative-to-project)
   (doom-modeline-bar-width 0))
 ;;;; Outline
-(use-package init-panel ;> read this config as a panel: folded sections with icons, notes drawn at column 70
+(use-package init-panel ;> read this config as a panel — on only in files whose first line says init-panel: t
   :straight nil ;. local package on its way to a repo — local-packages/init-panel/README.md
   :load-path "local-packages/init-panel" ;. the package directory, not the file
-  :hook (emacs-lisp-mode . init-panel-mode) ;. native outline-minor-mode underneath: TAB / S-TAB cycle on a heading
+  :hook (hack-local-variables . init-panel-maybe-enable) ;. autoloads on the first visited file; enables only where init-panel: t
+  :init
+  (put 'init-panel 'safe-local-variable #'booleanp) ;. [fix]: must exist before any file is visited or Emacs drops the var as unsafe (no autoloads for a local package)
   :bind (:map init-panel-mode-map
               ("C-c C-t" . init-panel-show-headings) ;. every heading and top-level form (table of contents)
               ("C-c C-s" . init-panel-fold-subsections) ;. sections + subsections only

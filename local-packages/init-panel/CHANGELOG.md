@@ -13,6 +13,7 @@ First version worth a name. Extracted from a personal Emacs config.
 - First argument of every top-level form in its own face; imenu "Packages"
 - Folded `use-package` keyword summaries; `Section › Subsection` header line
 - Flymake end-of-line text hidden while reading
+- Opt-in per file: `init-panel: t` as a file-local variable + `init-panel-maybe-enable` on `hack-local-variables-hook`; the mode never enables itself elsewhere
 - Three fold states; empty keymap on purpose
 - Key detection only matches whole words (`has-agenda-view`, `SECRET`, `<style>` are not keys); `M-x cmd`, `C-x o o o`, `M-S-<up>` are
 - Marker faces: `;>` accent, `;.` secondary, `;;`/`;` quiet — markers stand apart from note text

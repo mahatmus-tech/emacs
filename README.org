@@ -64,7 +64,7 @@ See =local.el.example= for the full list of overridable variables and their expe
 | =;>=        | Note after a form, one space before it — the *why*, not the *what* |
 | =;.=        | Continuation of that note, or a sub-item inside the form  |
 
-The files carry only the markers; the rules, icons and the note column are drawn by init-panel (see below). =init-panel-normalize-buffer= converts a file that was aligned by hand.
+The files carry only the markers; the rules, icons and the note column are drawn by init-panel (see below). Each file opts in with =init-panel: t= in its first-line =-*- … -*-= cookie — the panel never turns itself on in an ordinary =.el=. =init-panel-normalize-buffer= converts a file that was aligned by hand.
 
 Open =init.el= (=C-c e=) and it starts folded to section level. From there:
 
