@@ -295,8 +295,18 @@ Fringe indicators stay.  Currently applies to Flymake."
   "Face of a note's text.")
 
 (defface init-panel-marker
+  '((t :inherit font-lock-function-name-face :weight bold))
+  "Face of the `;>' note marker (or its glyph).
+An accent, so the marker stands apart from the gray note text.")
+
+(defface init-panel-marker-continuation
+  '((t :inherit font-lock-type-face))
+  "Face of the `;.' continuation marker (or its glyph).")
+
+(defface init-panel-marker-prose
   '((t :inherit font-lock-comment-delimiter-face :weight bold))
-  "Face of the `;>' / `;.' markers (or their glyphs).")
+  "Face of the `;;' / `;' prose comment markers (or their glyphs).
+Quieter than the note markers: prose is context, notes are the point.")
 
 (defface init-panel-tag
   '((t :inherit shadow :box (:line-width (-1 . -1)) :weight bold))
@@ -421,6 +431,13 @@ Nerd Font icons are double-width in non-Mono variants, hence 4."
 (defun init-panel--displayable-p (string)
   "Non-nil when every character of STRING can be shown on this display."
   (seq-every-p #'char-displayable-p string))
+
+(defun init-panel--marker-face (marker)
+  "Face for MARKER: note, continuation or prose."
+  (let ((k (init-panel--marker-key marker)))
+    (cond ((equal k ";>") 'init-panel-marker)
+          ((equal k ";.") 'init-panel-marker-continuation)
+          (t 'init-panel-marker-prose))))
 
 (defun init-panel--marker-key (marker)
   "Canonical key of MARKER in `init-panel-glyph-alist' (normalized to `;')."
@@ -595,7 +612,7 @@ Only adds properties; the caller has already applied the base face."
 Callers inside font-lock must wrap this in `save-match-data'."
   (let* ((marker (substring text 0 2))
          (body (string-trim (substring text 2)))
-         (glyph (propertize (init-panel--glyph marker) 'face 'init-panel-marker)))
+         (glyph (propertize (init-panel--glyph marker) 'face (init-panel--marker-face marker))))
     (with-temp-buffer
       (insert (propertize body 'face 'init-panel-note))
       (init-panel--decorate (point-min) (point-max))
@@ -625,12 +642,13 @@ Callers inside font-lock must wrap this in `save-match-data'."
 
 (defun init-panel--note-marker-props ()
   "Group 4 (the marker): its glyph in `column' style."
-  (let ((marker (match-string-no-properties 4)))
+  (let* ((marker (match-string-no-properties 4))
+         (face (init-panel--marker-face marker)))
     (if (or (init-panel--in-margin-p)
             (init-panel--current-line-p (match-beginning 4))
             (equal (init-panel--glyph marker) marker))
-        'init-panel-marker
-      (list 'face 'init-panel-marker 'display (init-panel--glyph marker)))))
+        face
+      (list 'face face 'display (init-panel--glyph marker)))))
 
 (defun init-panel--note-decorate-props ()
   "Final highlighter of a note: decorate the text (group 5) as a side effect."
@@ -658,11 +676,12 @@ Headings (3+ chars), notes and autoload cookies are left to their own rules."
 
 (defun init-panel--prose-marker-props ()
   "Glyph for a prose comment's marker (group 1)."
-  (let ((marker (match-string-no-properties 1)))
+  (let* ((marker (match-string-no-properties 1))
+         (face (init-panel--marker-face marker)))
     (if (or (init-panel--current-line-p (match-beginning 1))
             (equal (init-panel--glyph marker) marker))
-        'init-panel-marker
-      (list 'face 'init-panel-marker 'display (init-panel--glyph marker)))))
+        face
+      (list 'face face 'display (init-panel--glyph marker)))))
 
 (defun init-panel--prose-decorate-props ()
   "Decorate a prose comment's text (group 2) as a side effect."
