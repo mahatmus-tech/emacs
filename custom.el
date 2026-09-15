@@ -201,10 +201,10 @@ click-opens-in-other-window behavior must stay unaffected."
       (me/dirvish-side-open-or-expand)
     (dired-mouse-find-file-other-window event)))
 
-(defun me/tabspaces-skip-terminal-record (buffer) ;> session save: terminals (eat, ghostel, claude) would only come back as empty shells
+(defun me/tabspaces-skip-terminal-record (buffer) ;> session save: terminals (ghostel, claude) would only come back as empty shells
   "Return a no-op session record for BUFFER when it is a terminal, else nil."
   (with-current-buffer buffer
-    (when (derived-mode-p 'eat-mode 'ghostel-mode)
+    (when (derived-mode-p 'ghostel-mode)
       (list :kind 'skip :name (buffer-name)))))
 
 (defun me/tabspaces-strip-window-states (&rest _) ;> session restore: buffers only — saved layouts fight dirvish's side windows
@@ -223,10 +223,10 @@ exists, rename a pristine startup tab, or open a fresh tab next to whatever is b
              (tab-bar-rename-tab first)))))
 
 (defun me/open-terminal () ;> bash terminal at project root
-  "Open (or reuse) an eat terminal at the current project's root.
+  "Open (or reuse) a ghostel terminal at the current project's root.
 The buffer is renamed \"term: <project>\" so several projects can each keep one."
   (interactive)
-  (let ((buf (eat-project)))
+  (let ((buf (ghostel-project)))
     (with-current-buffer buf
       (rename-buffer (format "term: %s"
                              (file-name-nondirectory
