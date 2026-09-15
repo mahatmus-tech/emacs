@@ -426,7 +426,7 @@
   :bind (("C-c W" . tabspaces-restore-session) ;. C-c w builds the default workspaces, C-c W brings back last session's tabs
          ("C-x t 0" . tabspaces-kill-buffers-close-workspace)) ;. isolated tabspace: closing it kills its exclusive buffers too
   :config
-  (tabspaces-register-buffer-kind 'skip ;. eat/ghostel/claude terminals: saved as no-ops, never restored
+  (tabspaces-register-buffer-kind 'skip ;. ghostel/claude terminals: saved as no-ops, never restored
                                   #'me/tabspaces-skip-terminal-record #'ignore)
   (tabspaces-register-buffer-kind 'dirvish-side ;. side panels: stored as a dir, rebuilt per tab after the restore loop
                                   #'me/tabspaces-side-panel-record #'me/tabspaces-side-panel-defer)
@@ -450,16 +450,6 @@
   (add-to-list 'consult-buffer-sources 'my/consult-source-tabspaces-buffer))
 
 ;;; Terminal
-(use-package eat ;> full terminal emulator, pure Elisp, no compilation
-  :straight (:type git :host codeberg :repo "akib/emacs-eat"
-             :files ("*.el" ("term" "term/*.el") "*.texi"
-                     "*.ti" ("terminfo/e" "terminfo/e/*")
-                     ("terminfo/65" "terminfo/65/*")
-                     ("integration" "integration/*")
-                     (:exclude ".git" ".dir-locals.el" "*-tests.el")))
-  :custom
-  (eat-kill-buffer-on-exit t))
-
 (use-package ghostel ;> terminal on ghostty's VT engine; renders claude's TUI cleanest
   :custom
   (ghostel-module-directory
@@ -472,7 +462,7 @@
   :bind
   ("C-c k" . claude-code-ide-menu)
   :custom
-  (claude-code-ide-terminal-backend 'ghostel) ;. trialing ghostel over eat — fewest TUI artifacts per upstream; revert to 'eat if it misbehaves
+  (claude-code-ide-terminal-backend 'ghostel) ;. eat's rendering was broken enough to be unusable; ghostel is the only terminal now
   (claude-code-ide-buffer-name-function
       (lambda (directory)
         (if directory
@@ -480,11 +470,10 @@
           "claude: global")))
   :config
   (claude-code-ide-emacs-tools-setup)
-  (dolist (hook '(eat-mode-hook ghostel-mode-hook)) ;. remove number lines in claude buffers, whichever backend is active
-    (add-hook hook
-              (lambda ()
-                (when (string-prefix-p "claude:" (buffer-name))
-                  (display-line-numbers-mode -1))))))
+  (add-hook 'ghostel-mode-hook ;. remove number lines in claude buffers
+            (lambda ()
+              (when (string-prefix-p "claude:" (buffer-name))
+                (display-line-numbers-mode -1)))))
 
 ;;; Version Control
 (use-package magit ;> git porcelain

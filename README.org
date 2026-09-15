@@ -110,11 +110,11 @@ Each repo gets its own tab with an isolated buffer list, its own Dirvish side pa
 |-------+---------------------------+--------------------------------------------------------------------|
 | =C-c w= | ~me/setup-workspaces~       | Opens one tab per repo listed in ~me/workspace-default-repos~        |
 | =C-c o= | ~me/open-project-workspace~ | Prompts for any directory under =~/repos/= and opens it the same way |
-| =C-c t= | ~me/open-terminal~          | Opens a =eat= terminal named after the current project               |
+| =C-c t= | ~me/open-terminal~          | Opens a =ghostel= terminal named after the current project           |
 
 Dirvish scopes its sessions per tab, so every tab keeps its own side panel with no syncing code (~me/open-repo-workspace~ in =custom.el= is the whole setup).
 
-Tabs survive restarts: =tabspaces-session= writes every tab's buffer list to =var/tabspaces-session.eld= on exit, and =C-c W= (~tabspaces-restore-session~) brings them back on demand — never automatically, because Emacs is also launched for one-off system files. Only buffers come back — window layouts are deliberately dropped (they fight Dirvish's side windows), each Dirvish side panel is rebuilt from its directory once startup is over, terminals (=eat=, =ghostel=, Claude) are skipped rather than resurrected as empty shells, and you land on the first saved tab. =C-c w= still works on a restored tab (it just re-adds Magit + the panel).
+Tabs survive restarts: =tabspaces-session= writes every tab's buffer list to =var/tabspaces-session.eld= on exit, and =C-c W= (~tabspaces-restore-session~) brings them back on demand — never automatically, because Emacs is also launched for one-off system files. Only buffers come back — window layouts are deliberately dropped (they fight Dirvish's side windows), each Dirvish side panel is rebuilt from its directory once startup is over, terminals (=ghostel=, Claude) are skipped rather than resurrected as empty shells, and you land on the first saved tab. =C-c w= still works on a restored tab (it just re-adds Magit + the panel).
 
 ** Clojure
 [[https://github.com/clojure-emacs/clojure-ts-mode][clojure-ts-mode]] (tree-sitter, Emacs 30) is the editing mode — =clojure-mode= stays installed as CIDER's dependency, and =major-mode-remap-alist= redirects =.clj/.cljs/.cljc/.edn= to the =-ts-= variants lazily. Grammars (=clojure=, =regex=, =markdown-inline=) are compiled into =tree-sitter/= on first use; that needs a C compiler. Cider for the REPL/jack-in workflow, Eglot (+ eglot-booster for faster JSON parsing) for LSP-backed navigation/completion, with diagnostics in the built-in Flymake (=M-g f= lists them via consult). See the =:init= block of the =cider= package in =init.el= for the full list of tuned Cider defaults (each has a =;.= comment explaining the choice).
@@ -179,7 +179,7 @@ Under the hood ~me/calendar--org-source~ (=custom.el=) wraps calfw-org's collect
 - *Reveal.js presentations* via [[https://gitlab.com/oer/org-re-reveal][org-re-reveal]]: any Org file exports to a full HTML5 slide deck with =C-c C-e R R=.
 
 ** Claude Code integration
-[[https://github.com/manzaltu/claude-code-ide.el][claude-code-ide.el]] runs Claude Code inside a [[https://github.com/dakra/ghostel][ghostel]] terminal per project (the backend upstream recommends for artifact-free TUI rendering; =eat= stays installed for =C-c t= and as fallback) and exposes Emacs' own xref/diagnostics/imenu to it over MCP.
+[[https://github.com/manzaltu/claude-code-ide.el][claude-code-ide.el]] runs Claude Code inside a [[https://github.com/dakra/ghostel][ghostel]] terminal per project (the backend upstream recommends for artifact-free TUI rendering; =eat= was dropped entirely — its rendering was broken enough to be unusable) and exposes Emacs' own xref/diagnostics/imenu to it over MCP.
 
 | Key   | Command                 | Does                                                     |
 |-------+-------------------------+----------------------------------------------------------|
