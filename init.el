@@ -363,6 +363,7 @@
               (lambda (buffer)
                 (with-current-buffer buffer (display-line-numbers-mode -1))))
   (advice-add 'dirvish-side--auto-jump :after #'me/dirvish-side-auto-jump-defer) ;. [fix]: panel index goes stale after find-file — see custom.el
+  (advice-add 'dirvish-winbuf-change-h :before #'me/dirvish-side-restamp-tab) ;. [fix]: closing an earlier tab strands later tabs' panels — see custom.el
   :bind ; Bind `dirvish-fd|dirvish-side|dirvish-dwim' as you see fit
   (("C-c f" . dirvish)
    ("C-c F" . dirvish-side) ;. focus the visible side panel from any window; toggles it away from inside

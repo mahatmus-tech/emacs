@@ -176,6 +176,20 @@ run synchronously outside the command loop don't fully take effect); same fix."
               (file buffer-file-name))
     (run-at-time 0 nil #'me/dirvish-side-resync win file)))
 
+(defun me/dirvish-side-restamp-tab (window) ;> [fix]: closing an earlier tab shifts every later tab's index, stranding the panel
+  "Before `dirvish-winbuf-change-h' runs on WINDOW, refresh a dirvish-side
+buffer's stamped `:tab' to the current `tab-bar--current-tab-index'.
+Each tabspace owns one exclusive dirvish-side session that never migrates
+between tabs, so the stale-tab branch `dirvish-winbuf-change-h' takes
+is always a false positive here: it kills the panel buffer and rebuilds a
+plain (non-side) dirvish session in its window, clobbering whatever else
+was in that tab's layout (claude's ghostel buffer, say). `:before' advice
+on `dirvish-winbuf-change-h' (init.el, dirvish :config)."
+  (when-let* ((buf (window-buffer window))
+              ((string-prefix-p " *SIDE :: " (buffer-name buf))))
+    (with-current-buffer buf
+      (dirvish-prop :tab (tab-bar--current-tab-index)))))
+
 (defun me/dirvish-side-open-or-expand () ;> RET in the side panel expands directories in place, like TAB (dirvish-mode-map, init.el)
   "In a dirvish-side session, toggle the subtree at point if it is a
 directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
