@@ -357,13 +357,14 @@
   (setq dirvish-attributes           ; The order *MATTERS* for some attributes
         '(vc-state subtree-state nerd-icons collapse git-msg file-time file-size)
         dirvish-side-attributes
-        '(vc-state nerd-icons collapse))
+        '(vc-state nerd-icons collapse full-name-tip)) ;. hover tooltip for names cut off by the panel width — custom.el
   (setq dirvish-large-directory-threshold 20000) ;. open large directory (over 20000 files) asynchronously with `fd' command
   (advice-add 'dirvish-side-root-conf :after ;> [fix]: no room for the gutter in a 35-col sidebar
               (lambda (buffer)
                 (with-current-buffer buffer (display-line-numbers-mode -1))))
   (advice-add 'dirvish-side--auto-jump :after #'me/dirvish-side-auto-jump-defer) ;. [fix]: panel index goes stale after find-file — see custom.el
   (advice-add 'dirvish-winbuf-change-h :before #'me/dirvish-side-restamp-tab) ;. [fix]: closing an earlier tab strands later tabs' panels — see custom.el
+  (advice-add 'dirvish--new :around #'me/dirvish-side-unfix-width) ;. [fix]: panel width is draggable — see custom.el
   :bind ; Bind `dirvish-fd|dirvish-side|dirvish-dwim' as you see fit
   (("C-c f" . dirvish)
    ("C-c F" . dirvish-side) ;. focus the visible side panel from any window; toggles it away from inside

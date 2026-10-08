@@ -3,7 +3,6 @@
 (setq inhibit-startup-screen t) ;> disables start-up splash screen
 (setq inhibit-startup-message t) ;> disables start-up message
 (setq frame-inhibit-implied-resize t) ;> prevents resizing frame on UI elements changes
-(tooltip-mode -1) ;> disable tooltips
 (tool-bar-mode -1) ;> disable tool bar
 (menu-bar-mode -1) ;> disable menu bar
 (scroll-bar-mode -1) ;> disable scroll bar

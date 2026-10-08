@@ -190,6 +190,31 @@ on `dirvish-winbuf-change-h' (init.el, dirvish :config)."
     (with-current-buffer buf
       (dirvish-prop :tab (tab-bar--current-tab-index)))))
 
+(defun me/dirvish-side-unfix-width (orig &rest args) ;> [fix]: dirvish pins the panel width, so dragging its border does nothing
+  "Call ORIG (`dirvish--new') with ARGS, minus `:size-fixed' for side sessions.
+Dirvish copies `:size-fixed' into the panel buffer's `window-size-fixed',
+which makes `window-resize' refuse width changes. Dropping it leaves the
+panel at `dirvish-side-width' initially but draggable afterwards. `:around'
+advice on `dirvish--new' (init.el, dirvish :config)."
+  (apply orig (if (eq (plist-get args :type) 'side)
+                  (cl-loop for (k v) on args by #'cddr
+                           unless (eq k :size-fixed) append (list k v))
+                args)))
+
+;; dirvish-define-attribute is a package macro, so it can only expand once dirvish is loaded
+(with-eval-after-load 'dirvish ;> side panel: hover a truncated name to read it whole (init.el, dirvish-side-attributes)
+  (dirvish-define-attribute full-name-tip
+    "Put the full name in `help-echo' of a filename that does not fit the window."
+    (when (and f-beg f-end)
+      (if (<= (+ (or (get-text-property l-beg 'line-prefix) 0) ;. subtree indent, in columns
+                 4 ;. room taken by the vc-state, icon and collapse columns (estimate)
+                 (string-width f-str))
+              w-width)
+          (when (equal (get-text-property f-beg 'help-echo) f-str) ;. widened again: give dired's own hint back
+            (put-text-property f-beg f-end 'help-echo "mouse-2: visit this file in other window"))
+        (put-text-property f-beg f-end 'help-echo f-str)))
+    nil))
+
 (defun me/dirvish-side-open-or-expand () ;> RET in the side panel expands directories in place, like TAB (dirvish-mode-map, init.el)
   "In a dirvish-side session, toggle the subtree at point if it is a
 directory; visit the file otherwise. Leaves fullscreen dirvish untouched."
