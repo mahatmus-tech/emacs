@@ -65,6 +65,14 @@ With an active region or no minibuffer, behave exactly like C-g; in a
   (interactive)
   (tab-bar-new-tab)
   (scratch-buffer))
+
+(defun me/savehist-strip-kill-ring () ;> [fix]: kill-ring text props (syntax-table char-tables) print as unreadable #N# and break savehist-mode (init.el, savehist)
+  "Drop text properties from `kill-ring' before savehist writes it.
+Entries copied out of org src blocks carry circular `syntax-table'
+char-tables; the saved file then fails to read back, which aborts
+`after-init-hook' and with it vertico, corfu, doom-modeline...
+Hooked on `savehist-save-hook'."
+  (setq kill-ring (mapcar #'substring-no-properties kill-ring)))
 ;;; Workspace
 (defun me/tab-bar-refresh-focus-highlight (&rest _) ;> border on the focused tab tracks the active theme
   "Set `tab-bar-tab's box border color from the active `mode-line' face.

@@ -295,7 +295,8 @@
   :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
 
 (use-package savehist ;> persist history over emacs restarts. vertico sorts by history position
-  :hook (after-init . savehist-mode)
+  :hook ((after-init . savehist-mode)
+         (savehist-save . me/savehist-strip-kill-ring)) ;. [fix]: keep the history file readable — see custom.el
   :custom
   (savehist-additional-variables '(kill-ring search-ring regexp-search-ring))) ;. kill-ring survives restarts
 
