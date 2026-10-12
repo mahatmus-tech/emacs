@@ -60,6 +60,136 @@ With an active region or no minibuffer, behave exactly like C-g; in a
 
 (advice-add 'load-theme :after #'me/save-frame-colors) ;> pre render last theme to avoid flash
 
+(defun me/omarchy-read-colors (file) ;> flat `key = "#hex"` lines of an Omarchy colors.toml -> alist of strings
+  "Return an alist of (KEY . VALUE) strings read from the palette FILE.
+`colors.toml' is flat and string-only, so a line scan is enough."
+  (with-temp-buffer
+    (insert-file-contents file)
+    (let (alist)
+      (while (re-search-forward "^[ \t]*\\([a-z_]+\\)[ \t]*=[ \t]*\"\\([^\"]*\\)\"" nil t)
+        (push (cons (match-string 1) (match-string 2)) alist))
+      (nreverse alist))))
+
+(defun me/omarchy--luminance (color) ;. cheap perceived brightness, 0..1; nil when COLOR is not parseable
+  (when-let* ((rgb (color-name-to-rgb color)))
+    (+ (* 0.299 (nth 0 rgb)) (* 0.587 (nth 1 rgb)) (* 0.114 (nth 2 rgb)))))
+
+(defun me/omarchy-palette-overrides (colors) ;> colors.toml alist -> Modus palette overrides, same slot mapping Omarchy renders in Neovim
+  "Return a Modus palette-overrides list built from COLORS (see `me/omarchy-read-colors').
+Mapping mirrors the bundled omarchy.el Omarchy-4 themes (aether slots).  A
+key missing from COLORS falls back along its chain; a slot with no value
+at all is left to the Modus base."
+  (let* ((light (equal (cdr (assoc "mode" colors)) "light"))
+         (get (lambda (&rest keys) (seq-some (lambda (k) (cdr (assoc k colors))) keys)))
+         (bg    (funcall get "background"))
+         (fg    (funcall get "foreground"))
+         (dbg   (funcall get "dark_background" "background"))
+         (ddbg  (funcall get "darker_background" "dark_background" "background"))
+         (lbg   (funcall get "lighter_background" "background"))
+         (sel   (funcall get "selection"))
+         (muted (funcall get "muted" "dark_foreground"))
+         (accent (funcall get "accent" "blue"))
+         ;; [fix]: some palettes (aether) use a foreground-like `selection'; as a region
+         ;; background it makes text unreadable, so only trust it when it is nearer bg than fg
+         (region (let ((ls (and sel (me/omarchy--luminance sel)))
+                       (lb (and bg (me/omarchy--luminance bg)))
+                       (lf (and fg (me/omarchy--luminance fg))))
+                   (if (and ls lb lf (< (abs (- ls lb)) (abs (- ls lf)))) sel lbg)))
+         (heading (list accent
+                        (funcall get "red") (funcall get "yellow") (funcall get "yellow")
+                        (funcall get "green") (funcall get "blue") (funcall get "magenta")
+                        (funcall get "red") (funcall get "yellow")))
+         (table
+          `((,bg bg-main)
+            (,dbg bg-dim bg-mode-line-inactive bg-line-number-inactive)
+            (,ddbg bg-inactive)
+            (,lbg bg-active border bg-hl-line bg-paren-match bg-search-lazy bg-hover
+                  bg-completion bg-mode-line-active border-mode-line-active)
+            (,region bg-region)
+            (,fg fg-main fg-region fg-mode-line-active variable variable-use identifier
+                 operator fg-line-number-active)
+            (,muted fg-dim comment fg-mode-line-inactive punctuation fg-line-number-inactive)
+            (,(if light (funcall get "dark_foreground") (funcall get "light_foreground")) fg-alt)
+            (,(funcall get "bright_foreground" "foreground") cursor)
+            (,(funcall get "bright_magenta" "magenta") keyword)
+            (,(funcall get "blue") fnname fnname-call name fg-link info modeline-info)
+            (,(funcall get "yellow") type warning modeline-warning bg-search-current)
+            (,(funcall get "bright_yellow" "yellow") constant)
+            (,(funcall get "orange" "yellow") number)
+            (,(funcall get "green") string docstring)
+            (,(funcall get "bright_cyan" "cyan") property)
+            (,(funcall get "cyan") builtin preprocessor)
+            (,(funcall get "bright_red" "red") err modeline-err)
+            (,(funcall get "magenta") fg-prompt)))
+         result)
+    (dolist (row table)
+      (when (car row)
+        (dolist (slot (cdr row)) (push (list slot (car row)) result))))
+    (let ((i 0))
+      (dolist (h heading)
+        (when h (push (list (intern (format "fg-heading-%d" i)) h) result))
+        (setq i (1+ i))))
+    (nreverse result)))
+
+(defun me/omarchy-derive-theme (file) ;> load the stock Modus theme (by `mode') recolored from the Omarchy palette FILE
+  "Derive and enable a theme from the Omarchy `colors.toml' FILE.
+Uses the per-theme Modus overrides, never the common ones: those leak
+into every bundled omarchy.el theme.  Any failure messages the reason and
+enables `omarchy-default-theme' instead."
+  (condition-case err
+      (let ((colors (me/omarchy-read-colors file)))
+        (unless (and (assoc "background" colors) (assoc "foreground" colors))
+          (error "no background/foreground in palette"))
+        (let* ((light (equal (cdr (assoc "mode" colors)) "light"))
+               (base (if light 'modus-operandi 'modus-vivendi)))
+          (set (intern (format "%s-palette-overrides" base))
+               (me/omarchy-palette-overrides colors))
+          (mapc #'disable-theme custom-enabled-themes)
+          (load-theme base :no-confirm)
+          (message "Theme set to %s derived from %s" base file)))
+    (error
+     (message "omarchy: cannot derive theme from %s: %s" file (error-message-string err))
+     (when (bound-and-true-p omarchy-default-theme)
+       (mapc #'disable-theme custom-enabled-themes)
+       (load-theme omarchy-default-theme :no-confirm)))))
+
+(defun me/omarchy-user-theme-entries () ;> (slug . thunk) for each user theme with a colors.toml, ready for `omarchy-theme-map'
+  "Return `omarchy-theme-map' entries for themes in ~/.config/omarchy/themes/.
+Only directories (or symlinks to them) holding a readable `colors.toml'."
+  (let ((dir (expand-file-name "~/.config/omarchy/themes/")))
+    (when (file-directory-p dir)
+      (delq nil
+            (mapcar (lambda (d)
+                      (let ((f (expand-file-name "colors.toml" d)))
+                        (when (file-readable-p f)
+                          (cons (file-name-nondirectory d)
+                                (lambda () (me/omarchy-derive-theme f))))))
+                    (directory-files dir t "\\`[^.]"))))))
+
+(defvar me/editor-font-families ;> preference order; the first one the display has wins
+  '("JetBrainsMono Nerd Font Mono" "JetBrainsMono Nerd Font")
+  "Editor font families, best first.  The second is what Omarchy's base font package installs.")
+
+(defvar me/editor-font-height 120 ;> fixed size, 1/10 pt (12pt)
+  "Height of the `default' face; never taken from the Omarchy desktop.")
+
+(defun me/set-editor-font () ;> pin the default face to the configured family/height; no-op without a graphic display
+  "Apply `me/editor-font-families' and `me/editor-font-height' to the `default' face.
+Return the family applied, or nil.  Messages when the preferred family is
+missing so the fallback is never silent."
+  (when (display-graphic-p)
+    (let* ((available (font-family-list))
+           (family (seq-find (lambda (f) (member f available)) me/editor-font-families)))
+      (cond
+       ((null family)
+        (message "Editor font: none of %S installed, keeping the display default" me/editor-font-families)
+        nil)
+       (t
+        (unless (equal family (car me/editor-font-families))
+          (message "Editor font: %s not installed, using %s" (car me/editor-font-families) family))
+        (set-face-attribute 'default nil :family family :height me/editor-font-height)
+        family)))))
+
 (defun me/new-scratch-tab () ;> new tab with scratch buffer
   "Open a new tab showing a fresh *scratch* buffer (bound to C-x t 2)."
   (interactive)

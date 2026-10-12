@@ -159,10 +159,15 @@
   :demand t
   :init
   (setq omarchy-default-theme 'modus-vivendi
-        omarchy-default-font  "JetBrainsMono Nerd Font Mono")
+        omarchy-default-font  "JetBrainsMono Nerd Font Mono"
+        omarchy-font-height   me/editor-font-height) ;. any font apply by the package keeps the pinned size
   :config
   (require 'omarchy-themes) ; register bundled themes
-  (omarchy-init))
+  (dolist (entry (me/omarchy-user-theme-entries)) ;> user themes in ~/.config/omarchy/themes/ with a colors.toml, derived on the Modus base — added before init so the startup sync finds them; they win over a same-named shipped theme, as in Omarchy
+    (add-to-list 'omarchy-theme-map entry))
+  (omarchy-init)
+  (me/set-editor-font) ;> last, so the pinned family beats the font Omarchy just synced from the desktop
+  (me/save-frame-colors)) ;. rewrite frame-colors.el so the next startup pre-renders with the final font
 
 (add-hook 'enable-theme-functions #'me/tab-bar-refresh-focus-highlight) ;> tab-bar focus border tracks any theme (any package, or none)
 (add-hook 'after-init-hook #'me/tab-bar-refresh-focus-highlight) ;. catches whatever theme startup already applied

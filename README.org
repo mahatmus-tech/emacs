@@ -94,6 +94,9 @@ Startup is optimized in a few concrete ways:
 
 * Feature tour
 
+** Omarchy theme and font
+Emacs follows the active Omarchy theme at startup through the local =omarchy.el= clone. Shipped Omarchy themes use their bundled Emacs theme. A theme you installed under =~/.config/omarchy/themes/= is derived from its =colors.toml= (dark or light Modus base by =mode=, same slot mapping Omarchy renders in Neovim), so a new custom theme needs no config edit. If the palette cannot be read, Emacs falls back to =modus-vivendi= and says why in =*Messages*=. The editor font is pinned, independent of theme and of the desktop font: =JetBrainsMono Nerd Font Mono= at 12pt (=me/editor-font-families=, =me/editor-font-height=), falling back to =JetBrainsMono Nerd Font= with a message when the Mono variant is not installed (=ttf-jetbrains-mono-nerd=).
+
 ** Completion stack
 Vertico (vertical minibuffer) + Corfu (in-buffer completion popup) + Orderless (space-separated fuzzy matching) + Consult (search/navigation commands) + Marginalia (annotations) + Embark (act on the candidate at point). This is the standard "Vertico stack" — see [[https://github.com/minad/vertico][minad/vertico]] if you're unfamiliar with it.
 
