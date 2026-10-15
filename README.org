@@ -157,6 +157,18 @@ A full Todoist replacement, built on top of stock Org:
 
 Processing the inbox: refine (=INBOX= → =TODO= + priority + date), refile (=C-c C-w=) into the right category, or park it in =someday.org= if it's not actionable yet. =DONE= items should be archived (=C-c C-x C-a=) to keep the agenda clean.
 
+*** Task hierarchy and dashboard (=C-c D=, =C-c a D=)
+The task tree is area → project → front → milestone → task. An /area/ is a top-level entry of ~me/org-agenda-categories~; a /project/ is an entry with a sixth field, the key of its parent (an area's view then spans its children, and a child still gets its own capture template, refile target and calendar colour). Project entries carry employer names, so they are appended from =local.el= (example in =local.el.example=); the first capture into a project file creates its =* Inbox= heading. A /front/ is a level-1 heading and a /milestone/ is any heading tagged =:milestone:= (=C-c C-q= or =C-c C-c=; the tag is never inherited). Its progress is counted from the TODO states below it, not read from the =[n/m]= cookie, so a stale cookie cannot mislead the dashboard.
+
+- Put =DEADLINE= on milestones, not on every task: milestones then surface in the daily view, and tasks stay undated unless an external date is real. A milestone needs at least one TODO below it, otherwise it reads 0/0.
+- =C-c a D= opens three blocks: upcoming milestones by deadline (undated last, finished ones hidden), active tasks grouped under =Area / Project / outline path=, and one block per tag in ~me/org-agenda-crosscutting-tags~ (set in =local.el=). =TAB= on a group header folds it; on a task line it keeps jumping to the entry.
+- Progress cookies already draw as bars in org buffers (org-modern, ~org-modern-progress~ defaults to 12 cells), so no setting was added.
+- =C-c D= (~me/dashboard~) opens the =*Dashboard*= buffer, a read-only panel built with ~magit-section~ and drawn with =svg.el= (no external program): a totals line (open milestones, at risk or late, closed in the sprint, waiting, projects with no next action), a milestone timeline, then area → project → front → milestone sections, each with a progress bar and the project's next action. =TAB= folds a section (folds survive a refresh), =RET= opens the heading in the other window, =g= rebuilds, =e= exports =agenda/dashboard.org= to HTML, =q= buries the buffer.
+- /Risk/ is pace-based: a project's pace is the tasks it closed in the last 14 days divided by 14; a dated milestone is /at risk/ when its remaining tasks exceed pace × days left (at least one day), /late/ when the deadline is past. Milestone bars on the timeline run from =START= (property) — else the earliest =CLOSED= among its tasks, else =CREATED= — to the =DEADLINE=.
+- ~me/org-sprint-start~ (set in =local.el=, a Monday, "YYYY-MM-DD") anchors 14-day sprints that roll forward by themselves; unset, the sprint band and sprint counts are simply omitted.
+- Every build appends one row per project to =agenda/dashboard-history.csv= (~me/dashboard-history-file~, nil disables; =date,project,done,total,closed14=, at most one row per project per day). Two or more days of rows draw a burn-up sparkline next to the project.
+- =agenda/dashboard.org= under the org root holds one dynamic block, =#+BEGIN: me-dashboard=. Refresh with =C-u C-c C-x C-u= (or =e= in the buffer), export with =C-c C-e h h=: one self-contained themed HTML file with the same numbers as the buffer, collapsible =<details>= task lists per project and per front, and a checkbox per area that hides its cards and recomputes the totals (untick =Home= before sharing the screen). The filter is ~15 lines of inline JavaScript; everything else works with scripts off.
+
 *** Calendar (=C-c C=)
 The same agenda files, drawn as a calendar by [[https://github.com/kiwanami/emacs-calfw][calfw]] 2.0 plus [[https://github.com/haji-ali/calfw-blocks][calfw-blocks]]: =C-c C= (~me/calendar~) opens the week as time blocks — entries with a time (=<2026-08-12 Wed 10:00-11:30>= or a timed =SCHEDULED=) become blocks sized by their duration, all-day entries and multi-day ranges sit in the strip at the top, and each category draws in its own theme color (work = function-name face, home = string face, learn = type face; =inbox.org=/=someday.org= in grey). Brazilian national holidays show in the cells (~calendar-holidays~).
 
@@ -208,6 +220,7 @@ Multiple projects each get their own session; =M-x claude-code-ide-list-sessions
 | =C-c d=           | ~docker-compose~              | Docker Compose UI                                             |
 | =C-c a=           | ~org-agenda~                  | Open the agenda dispatcher                                    |
 | =C-c c=           | ~org-capture~                 | Open the capture dispatcher                                   |
+| =C-c D=           | ~me/dashboard~                | Project dashboard: milestones, risk by pace, burn-up          |
 | =C-c C=           | ~me/calendar~                 | Weekly time-block calendar of the agenda files (calfw)        |
 | =C-c g=           | ~org-gcal-sync~               | Pull/push Google Calendar events (first run: browser OAuth)   |
 | =C-c G=           | ~org-gcal-post-at-point~      | Publish the Org entry at point to its Google calendar         |

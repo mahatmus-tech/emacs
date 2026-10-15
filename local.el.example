@@ -26,6 +26,24 @@
       '(("you@gmail.com" "~/org/agenda/gcal-personal.org" "Personal" font-lock-keyword-face)
         ("you@work.example.com" "~/org/agenda/gcal-work.org" "Work" font-lock-constant-face)))
 
+;; Agenda categories — (key label file has-agenda-view face [parent]).
+;; The tracked default has the generic areas Work/Home/Learn, keys "w" "h"
+;; "l". Append project files here, with the area's key as PARENT: each one
+;; gets its own capture template, refile target and calendar color, and the
+;; area's agenda view (C-c a W) then spans the area's file plus its children.
+;; Pick keys no other capture template uses; a view key is the upcased key.
+(setq me/org-agenda-categories
+      (append me/org-agenda-categories
+              '(("x" "Project X" "agenda/project-x.org" t font-lock-keyword-face "w"))))
+
+;; Tags that cut across projects (e.g. a rule shared by two sub-projects).
+;; The Dashboard view (C-c a D) shows one block of active tasks per tag.
+(setq me/org-agenda-crosscutting-tags '("shared-rule"))
+
+;; First day (a Monday) of any past sprint; sprints last 14 days and the
+;; Dashboard (C-c D) rolls this forward. Unset: no sprint band or counts.
+(setq me/org-sprint-start "2026-01-05")
+
 ;; Repos auto-opened (own tabspace + Magit + Dirvish side panel) by
 ;; `me/setup-workspaces' (C-c w). The tracked default only has this repo
 ;; itself; add your other repos here.

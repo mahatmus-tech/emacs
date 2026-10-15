@@ -484,6 +484,9 @@
                 (display-line-numbers-mode -1)))))
 
 ;;; Version Control
+(use-package magit-section ;> section engine of the *Dashboard* buffer (C-c D) — already installed as a magit dependency
+  :commands magit-section-mode) ;. autoload only: `me/dashboard' requires it on first use
+
 (use-package magit ;> git porcelain
   :commands (magit-status magit-dispatch)
   :hook (magit-status-sections-hook . magit-insert-worktrees)
@@ -682,8 +685,10 @@
      ("@errand"   . ?e)
      (:endgroup . nil)
      ("recurring" . ?r)
+     ("milestone" . ?m) ;. marks a milestone heading (progress + deadline); the Dashboard view and dashboard.org read it
      ("someday"   . ?s)
      ("urgent"    . ?u)))
+  (org-tags-exclude-from-inheritance '("milestone")) ;. a task under a milestone is not itself a milestone
   ;; Agenda display
   (org-agenda-span 'day)
   (org-agenda-start-on-weekday nil)
@@ -735,6 +740,7 @@
                     (org-agenda-start-on-weekday nil)
                     (org-agenda-sorting-strategy '(priority-down time-up category-keep)))))))
     (me/org-agenda-view-entries)
+    (me/org-agenda-dashboard-entries) ;. "D": milestones by deadline, active tasks grouped by outline path, one block per cross-cutting tag
     '(("I" "Inbox Review"
        ((todo "INBOX"
               ((org-agenda-overriding-header "All unprocessed inbox items")
@@ -767,7 +773,11 @@
 
 (use-package org-super-agenda ;> supercharge your agenda
   :after org
-  :hook (org-agenda-mode . org-super-agenda-mode)) ;. global mode; first agenda buffer is the right moment to load it
+  :hook ((org-agenda-mode . org-super-agenda-mode) ;. global mode; first agenda buffer is the right moment to load it
+         (org-agenda-finalize . me/org-agenda-dashboard-setup)) ;. outline folding in the Dashboard buffer only (custom.el)
+  :config
+  (keymap-set org-super-agenda-header-map "TAB" #'me/org-agenda-toggle-group) ;. header map is only live on group header lines, so task lines keep their keys
+  (keymap-set org-super-agenda-header-map "<tab>" #'me/org-agenda-toggle-group)) ;. GUI frames send <tab>, which the copied agenda map binds on its own
 
 (use-package org-habit ;> org habit
   :straight (:type built-in)
@@ -916,6 +926,7 @@
 (keymap-global-set "M-;"     'comment-or-uncomment-region) ;> comment and uncomment lines
 (keymap-global-set "C-c a"   'org-agenda) ;> org-agenda
 (keymap-global-set "C-c c"   'org-capture) ;> org-capture
+(keymap-global-set "C-c D"   'me/dashboard) ;> project dashboard buffer: milestones, risk, burn-up (C-c a D is the task list)
 (keymap-global-set "C-c C"   'me/calendar) ;> calfw week calendar of every agenda file (C-c c is capture)
 (keymap-global-set "C-c e"   'me/open-config) ;> open init.el
 (keymap-global-set "C-g"     'me/keyboard-quit-dwim) ;> closes minibuffer even when unfocused
