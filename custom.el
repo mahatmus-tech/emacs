@@ -399,11 +399,12 @@ exists, rename a pristine startup tab, or open a fresh tab next to whatever is b
           (t (let ((tab-bar-new-tab-choice "*scratch*")) (tab-bar-new-tab)) ;. Emacs opened on a file: leave that tab alone
              (tab-bar-rename-tab first)))))
 
-(defun me/open-terminal () ;> bash terminal at project root
+(defun me/open-terminal (&optional arg) ;> bash terminal at project root
   "Open (or reuse) a ghostel terminal at the current project's root.
-The buffer is renamed \"term: <project>\" so several projects can each keep one."
-  (interactive)
-  (let ((buf (ghostel-project)))
+The buffer is renamed \"term: <project>\" so several projects can each keep one.
+With prefix ARG (\\[universal-argument]) always start a new instance."
+  (interactive "P")
+  (let ((buf (ghostel-project arg)))
     (with-current-buffer buf
       (rename-buffer (format "term: %s"
                              (file-name-nondirectory
