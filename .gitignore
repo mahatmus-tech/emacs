@@ -20,6 +20,10 @@
 /places
 /projects
 /frame-colors.el
+
+# Custom's machine-written settings (init.el loads it with noerror): carries
+# per-project safe-local-variable approvals that belong to one machine
+/custom-set.el
 /.org-generic-id-locations
 
 # tree-sitter grammars — compiled per machine, reinstalled on demand
