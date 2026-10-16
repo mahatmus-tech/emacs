@@ -27,11 +27,11 @@
 ;;; Bootstrap
 ;;;; Loading
 (load (expand-file-name "custom.el" user-emacs-directory)) ;> custom functions
-(load (expand-file-name "local.el" user-emacs-directory) ;> gitignored — real personal/employer values override the
+(load (expand-file-name "local.el" user-emacs-directory) ;> gitignored — personal values override the
       'noerror 'nomessage) ;. generic defaults from custom.el; absence is fine, see README
 (setq custom-file (expand-file-name ;> keep the Custom-generated block out of init.el
                    "custom-set.el" user-emacs-directory))
-(load custom-file 'noerror 'nomessage) ;> safe-local-variable-values etc. — versioned, hence not in no-littering etc/
+(load custom-file 'noerror 'nomessage) ;> safe-local-variable-values etc.; untracked (/custom-set.el in .gitignore), so approvals made on this machine stay on it
 (add-hook 'emacs-startup-hook ;> restore file-name-handler-alist after startup
           (lambda ()
             (setq gc-cons-threshold (* 16 1024 1024)) ;. 16MB — sane value until gcmh takes over (after-init)
@@ -59,14 +59,14 @@
       '(check-on-save find-when-checking))
 (setq use-package-always-defer t) ;> defer all packages by default; add :demand t to override
 ;;;; Warnings
-(setq warning-suppress-log-types '((comp) (emacs))) ;> suppress native-compilation + eager macroexpand warnings
-(setq warning-suppress-types '((comp) (emacs))) ;> suppress native-compilation + eager macroexpand warnings
+(setq warning-suppress-log-types '((comp) (emacs))) ;> keep native-compilation and eager-macroexpand warnings out of *Warnings* history
+(setq warning-suppress-types '((comp) (emacs))) ;> and out of the popup
 (setq native-comp-async-report-warnings-errors 'silent) ;> log async native-comp warnings without popping *Warnings*
                                                         ;. valid values are t/nil/silent; 'errors-only acted as t
 ;;; Core
 ;;;; IDE
 (add-hook 'after-init-hook #'column-number-mode) ;> show column number in modeline
-(add-hook 'after-init-hook #'global-display-line-numbers-mode) ;> show line_numbers globally
+(add-hook 'after-init-hook #'global-display-line-numbers-mode) ;> line numbers in every buffer
 (setq-default truncate-lines t) ;> set truncate lines
 (setq-default truncate-partial-width-windows t) ;> set truncate lines in split windows
 (setq-default display-line-numbers-width 3) ;> reserve 3 chars for line number gutter
@@ -99,8 +99,8 @@
 (setq mouse-wheel-progressive-speed nil) ;> [fix]: cursor jumping with mouse-wheel scroll
                                          ;. constant scroll amount per notch, no
                                          ;. acceleration triggering point relocation
-(setopt mouse-wheel-tilt-scroll t) ;> Enable horizontal scrolling
-(setopt mouse-wheel-flip-direction t) ;> Enable horizontal scrolling
+(setopt mouse-wheel-tilt-scroll t) ;> sideways wheel/touchpad motion scrolls horizontally
+(setopt mouse-wheel-flip-direction t) ;> with it, content follows the finger
 ;;;; Windows
 (use-package winner ;> undo/redo window layout changes
   :straight (:type built-in)
@@ -120,14 +120,10 @@
 ;;; Stability
 ;;;; Bug Fixes
 (use-package transient ;> force straight's transient before Emacs 30 built-in (0.7.2.2 lacks transient--set-layout)
-  ;; Do not set :straight (:type built-in)
-  ;; we need different version
-  :demand t)
+  :demand t) ;. no :straight (:type built-in): the build must come from straight, not Emacs
 
 (use-package compat ;> load early to prevent "void function" errors
-  ;; Do not set :straight (:type built-in)
-  ;; we need different version
-  :demand t)
+  :demand t) ;. no :straight (:type built-in): packages need a newer compat than Emacs ships
 ;;;; Performance
 (use-package gcmh ;> intelligent GC — high threshold during work, low when idle
   :hook (after-init . gcmh-mode)
@@ -138,23 +134,23 @@
 
 ;;; Visuals
 ;;;; Icons
-(use-package nerd-icons) ;> main icon package
+(use-package nerd-icons) ;> glyph set behind every nerd-icons-* integration below
 
-(use-package nerd-icons-corfu ;> use for corfu
+(use-package nerd-icons-corfu ;> kind icons in the corfu popup
   :after corfu
   :demand t ;. :after alone never loads under always-defer
   :config
   (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter))
 
-(use-package nerd-icons-completion ;> use for completion
+(use-package nerd-icons-completion ;> icons beside minibuffer candidates
   :hook (marginalia-mode . nerd-icons-completion-marginalia-setup)) ;. setup toggles the mode itself; the hook is what triggers the load
 
 ;;;; Themes
-(use-package modus-themes ;> base visual theme
+(use-package modus-themes ;> the theme family omarchy derives its colours from
   :demand t)
 
 (use-package omarchy ;> omarchy visual themes
-  :straight nil ;. use just for omarchy!
+  :straight nil ;. local clone of omarchy.el, not a package-archive install
   :load-path "local-packages/omarchy.el" ;. the clone's directory (relative to user-emacs-directory), not a file
   :demand t
   :init
@@ -173,18 +169,17 @@
 (add-hook 'after-init-hook #'me/tab-bar-refresh-focus-highlight) ;. catches whatever theme startup already applied
 
 ;;;; Modeline
-(use-package doom-modeline ;> mode-line inspired by minimalism design
+(use-package doom-modeline ;> compact mode line with project-relative file names
   :hook (after-init . doom-modeline-mode)
   :custom
   (doom-modeline-buffer-file-name-style 'relative-to-project)
   (doom-modeline-bar-width 0))
 ;;;; Outline
 (use-package init-panel ;> read this config as a panel — on only in files whose first line says init-panel: t
-  :straight nil ;. local package on its way to a repo — local-packages/init-panel/README.md
-  :load-path "local-packages/init-panel" ;. the package directory, not the file
+  :straight (:host github :repo "mahatmus-tech/init-panel") ;. own repository: README and tests live there
   :hook (hack-local-variables . init-panel-maybe-enable) ;. autoloads on the first visited file; enables only where init-panel: t
   :init
-  (put 'init-panel 'safe-local-variable #'booleanp) ;. [fix]: must exist before any file is visited or Emacs drops the var as unsafe (no autoloads for a local package)
+  (put 'init-panel 'safe-local-variable #'booleanp) ;. [fix]: must exist before any file is visited or Emacs drops the var as unsafe (autoloads only arrive with the first command)
   :bind (:map init-panel-mode-map
               ("C-c C-t" . init-panel-show-headings) ;. every heading and top-level form (table of contents)
               ("C-c C-s" . init-panel-fold-subsections) ;. sections + subsections only
@@ -201,12 +196,8 @@
   :hook (emacs-lisp-mode . highlight-defined-mode))
 ;;; Editing
 ;;;; Settings
-(setq show-paren-context-when-offscreen 'overlay) ;> [fix]: show matching paren's line in an
-                                                  ;. overlay when it's off-screen, so scrolling
-                                                  ;. to see it (moving point) isn't needed.
-                                                  ;. 'child-frame crashed Emacs (GTK widget-
-                                                  ;. disposal bug) — see openspec change
-                                                  ;. fix-show-paren-child-frame-crash
+(setq show-paren-context-when-offscreen 'overlay) ;> [fix]: show the matching paren's line in an overlay when it is off-screen
+                                                  ;. 'child-frame crashes Emacs (GTK widget-disposal bug), so the overlay is the only safe value
 (add-hook 'after-init-hook #'electric-pair-mode) ;> auto-close delimiters
 (add-hook 'after-init-hook #'delete-selection-mode) ;> delete selection on type
 (setq-default tab-width 2) ;> default tab display width
@@ -216,7 +207,7 @@
 (setq save-interprogram-paste-before-kill t) ;> clipboard text from other apps lands in the kill-ring before the next kill overwrites it
 (add-hook 'prog-mode-hook #'hs-minor-mode) ;> enable code folding in all programming modes (C-c @ C-h)
 ;;;; Packages
-(use-package no-littering ;> help keeping ~/.config/emacs clean
+(use-package no-littering ;> runtime files go to var/ and etc/ instead of the config directory
   :demand t
   :config
   (setq auto-save-file-name-transforms
@@ -224,7 +215,7 @@
         backup-directory-alist
         `((".*" . ,(no-littering-expand-var-file-name "backup/")))))
 
-(use-package dumb-jump ;> jump without cider
+(use-package dumb-jump ;> jump to definitions in buffers with no LSP or CIDER session
   :custom
   (dumb-jump-prefer-searcher 'rg)
   (xref-show-definitions-function #'consult-xref)
@@ -233,8 +224,8 @@
   :config
   (setq xref-backend-functions (delete 'etags--xref-backend xref-backend-functions))) ;. disable etags as fallback
 
-(use-package sudo-edit) ;> easy hyprland config changes
-(use-package multiple-cursors ;> multiple cursors for emacs
+(use-package sudo-edit) ;> save root-owned files, such as the system Hyprland config, from Emacs
+(use-package multiple-cursors ;> edit several places at once
   :commands (mc/edit-lines
              mc/mark-next-like-this
              mc/mark-previous-like-this
@@ -269,7 +260,7 @@
   :custom
   (completion-styles '(orderless basic))
   (completion-category-overrides '((file (styles partial-completion))))
-  (completion-category-defaults nil)   ; Disable defaults, use `corfu' settings
+  (completion-category-defaults nil)   ; no per-category style defaults: orderless everywhere
   (completion-pcm-leading-wildcard t)) ; Emacs 31: partial-completion behaves like substring
 
 (use-package consult ;> enhanced search and navigation commands
@@ -306,23 +297,20 @@
   (savehist-additional-variables '(kill-ring search-ring regexp-search-ring))) ;. kill-ring survives restarts
 
 (use-package marginalia ;> add annotation to minibuffer completions
-  ;; Bind `marginalia-cycle' locally in the minibuffer.  To make the binding
-  ;; available in the *Completions* buffer, add it to the
-  ;; `completion-list-mode-map'.
   :bind (:map minibuffer-local-map
-              ("M-A" . marginalia-cycle))
+              ("M-A" . marginalia-cycle)) ;. cycle annotation detail in the minibuffer
   :hook (after-init . marginalia-mode))
 
 (use-package embark ;> minibuffer actions and context menu
   :bind
-  (("C-." . embark-act)         ;; pick some comfortable binding
-   ("C-;" . embark-dwim)        ;; good alternative: M-.
-   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+  (("C-." . embark-act)         ; actions on the thing at point or the candidate
+   ("C-;" . embark-dwim)        ; the default action, no menu
+   ("C-h B" . embark-bindings)) ; searchable replacement for `describe-bindings'
   :init
-  (setq prefix-help-command #'embark-prefix-help-command) ;. Optionally replace the key help with a completing-read interface
-  (add-hook 'context-menu-functions #'embark-context-menu 100) ;. Add Embark to the mouse context menu. Also enable `context-menu-mode'.
+  (setq prefix-help-command #'embark-prefix-help-command) ;. C-h after a prefix key opens a searchable list of its bindings
+  (add-hook 'context-menu-functions #'embark-context-menu 100) ;. embark actions in the right-click menu (context-menu-mode is on above)
   :config
-  (add-to-list 'display-buffer-alist ;. Hide the mode line of the Embark live/completions buffers
+  (add-to-list 'display-buffer-alist ;. no mode line in embark's collect buffers
                '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
                  nil
                  (window-parameters (mode-line-format . none)))))
@@ -348,9 +336,9 @@
   (setq dired-listing-switches
         "-l --almost-all --human-readable --group-directories-first --no-group")
   (setq dired-dwim-target t) ;. copy/move defaults to the other visible dired (side panel ↔ C-c f)
-  (put 'dired-find-alternate-file 'disabled nil)) ;. this command is useful when you want to close the window of `dirvish-side' automatically when opening a file
+  (put 'dired-find-alternate-file 'disabled nil)) ;. enable the command: it opens a file in place of the dired buffer, so `dirvish-side' does not stack another one
 
-(use-package dirvish ;> enhances dired usability
+(use-package dirvish ;> dired with a side panel, previews and attribute columns
   :hook ((after-init . dirvish-override-dired-mode)
          (after-init . dirvish-side-follow-mode)) ;. side panel tracks the current buffer's file (what treemacs-follow-mode did)
   :custom
@@ -371,19 +359,19 @@
   (advice-add 'dirvish-side--auto-jump :after #'me/dirvish-side-auto-jump-defer) ;. [fix]: panel index goes stale after find-file — see custom.el
   (advice-add 'dirvish-winbuf-change-h :before #'me/dirvish-side-restamp-tab) ;. [fix]: closing an earlier tab strands later tabs' panels — see custom.el
   (advice-add 'dirvish--new :around #'me/dirvish-side-unfix-width) ;. [fix]: panel width is draggable — see custom.el
-  :bind ; Bind `dirvish-fd|dirvish-side|dirvish-dwim' as you see fit
+  :bind
   (("C-c f" . dirvish)
    ("C-c F" . dirvish-side) ;. focus the visible side panel from any window; toggles it away from inside
-   :map dirvish-mode-map ;. Dirvish inherits `dired-mode-map'
-   (";"   . dired-up-directory) ;. So you can adjust `dired' bindings here
-   ("?"   . dirvish-dispatch) ;. [?] a helpful cheatsheet
-   ("a"   . dirvish-setup-menu) ;. [a]ttributes settings:`t' toggles mtime, `f' toggles fullframe, etc.
-   ("f"   . dirvish-file-info-menu) ;. [f]ile info
-   ("o"   . dirvish-quick-access) ;. [o]pen `dirvish-quick-access-entries'
-   ("s"   . dirvish-quicksort) ;. [s]ort file list
-   ("r"   . dirvish-history-jump) ;. [r]ecent visited
-   ("l"   . dirvish-ls-switches-menu) ;. [l]s command flags
-   ("v"   . dirvish-vc-menu) ;. [v]ersion control commands
+   :map dirvish-mode-map ;. inherits `dired-mode-map', so dired bindings can be adjusted here
+   (";"   . dired-up-directory)
+   ("?"   . dirvish-dispatch) ;. cheatsheet of every dirvish command
+   ("a"   . dirvish-setup-menu) ;. attribute settings: `t' toggles mtime, `f' full frame
+   ("f"   . dirvish-file-info-menu) ;. file info
+   ("o"   . dirvish-quick-access) ;. jump to `dirvish-quick-access-entries'
+   ("s"   . dirvish-quicksort) ;. sort the listing
+   ("r"   . dirvish-history-jump) ;. recently visited directories
+   ("l"   . dirvish-ls-switches-menu) ;. ls flags
+   ("v"   . dirvish-vc-menu) ;. version control commands
    ("*"   . dirvish-mark-menu)
    ("y"   . dirvish-yank-menu)
    ("N"   . dirvish-narrow)
@@ -397,7 +385,7 @@
    ("M-e" . dirvish-emerge-menu)))
 
 ;;; Projects
-(use-package project ;> built-in project management
+(use-package project ;> project.el: root detection behind the C-c p commands and tabspaces
   :straight (:type built-in) ;. the ELPA clone straight fetched was shadowing Emacs 30's own
   :bind (("C-c p f" . project-find-file)
          ("C-c p p" . project-switch-project)
@@ -443,19 +431,7 @@
 
 (with-eval-after-load 'consult ;> buffer list per tab
   (setq consult-source-buffer (plist-put consult-source-buffer :hidden t))
-  (defvar my/consult-source-tabspaces-buffer
-    `(:name "Tab buffers"
-      :narrow   ?b
-      :history  buffer-name-history
-      :category buffer
-      :state    ,#'consult--buffer-state
-      :default  t
-      :items    ,(lambda () (consult--buffer-query
-                             :predicate #'tabspaces--local-buffer-p
-                             :sort 'visibility
-                             :as #'buffer-name)))
-    "Consult source for buffers local to the current tabspace.")
-  (add-to-list 'consult-buffer-sources 'my/consult-source-tabspaces-buffer))
+  (add-to-list 'consult-buffer-sources 'me/consult-source-tabspaces-buffer)) ;. the source itself is defined in custom.el (Tabspaces)
 
 ;;; Terminal
 (use-package ghostel ;> terminal on ghostty's VT engine; renders claude's TUI cleanest
@@ -495,9 +471,6 @@
   (setq epg-pinentry-mode 'loopback)
   (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
   (setq magit-show-long-lines-warning nil) ;. defvar, not defcustom: must be nil before magit loads; silences the >50k-char-line notice
-  ;; (setq magit-commit-show-diff nil)                                 ; disabled: already review staged changes before committing
-  ;; (setq vc-handled-backends (delq 'Git vc-handled-backends))        ; disabled: speeds up rebases per Magit manual, but breaks vc-diff elsewhere
-  ;; (setq magit-refresh-status-buffer nil)                            ; disabled: perf win not worth losing live status
   )
 
 (use-package forge ;> merge requests and issues via magit (gitlab)
@@ -514,7 +487,7 @@
   (pr-review-forges-alist '(("gitlab.com" . (gitlab "gitlab.com/api/v4" nil))))
   (pr-review-ghub-auth-name 'forge) ;. reuses the same ~/.authinfo entry as forge (any auth-source login works)
   :bind (:map forge-topic-mode-map
-         ("C-c C-r" . my/pr-review-forge-at-point))) ;. custom.el (Version Control): the topic at point, or prompt outside one
+         ("C-c C-r" . me/pr-review-forge-at-point))) ;. custom.el (Version Control): the topic at point, or prompt outside one
 
 (use-package ediff ;> ediff window fix for wayland
   :straight (:type built-in)
@@ -529,7 +502,7 @@
 
 ;;; Infrastructure
 ;;;; Docker
-(use-package docker ;> docker on emacs
+(use-package docker ;> containers, images and compose from Emacs
   :bind ("C-c d" . docker-compose)) ;. the compose transient ships here (docker-compose.el), not in a yaml major mode
 (use-package dockerfile-ts-mode ;> tree-sitter Dockerfile mode (built-in) — no dockerfile-mode package needed
   :straight (:type built-in)
@@ -558,7 +531,7 @@
                (clojurec-mode      . clojure-ts-clojurec-mode)
                (edn-mode           . clojure-ts-mode)))
     (add-to-list 'major-mode-remap-alist m))) ;. grammars (clojure, regex, markdown-inline) auto-build on first load — needs cc
-(use-package cider ;> cider
+(use-package cider ;> Clojure REPL: jack-in or connect, inline eval, docs
   :after clojure-mode
   :commands (cider-jack-in cider-connect cider-connect-clj cider-connect-cljs)
   :init
@@ -594,12 +567,12 @@
   :demand t ;. :after alone never loads under always-defer
   :config (eglot-booster-mode))
 
-(use-package paredit ;> paredit
+(use-package paredit ;> structural editing for Lisps and Clojure
   :hook ((clojure-mode emacs-lisp-mode lisp-mode lisp-interaction-mode
                        scheme-mode clojurescript-mode clojurec-mode cider-repl-mode
                        clojure-ts-mode) ;. covers clojure-ts-clojurescript/clojurec-mode — they derive from it
          . enable-paredit-mode)
-  :bind (:map paredit-mode-map ;. was global — leaked paredit commands into every buffer
+  :bind (:map paredit-mode-map ;. mode-local, so paredit commands stay out of other buffers
          ("C-c C-."     . paredit-backward-slurp-sexp)
          ("C-c C-,"     . paredit-backward-barf-sexp)
          ("C-c <left>"  . paredit-forward-slurp-sexp)
@@ -613,7 +586,7 @@
                   (apply orig args)))))
 
 ;;;; Markup
-(use-package markdown-mode ;> markdown mode
+(use-package markdown-mode ;> markdown editing; README.md opens in gfm-mode
   :mode ("README\\.md\\'" . gfm-mode)
   :bind (:map markdown-mode-map
               ("C-c C-e" . markdown-do)))
@@ -629,16 +602,30 @@
 ;;;; Web
 (setq-default js-indent-level 2) ;> javascript indent width
 (setq-default css-indent-offset 2) ;> css indent width
+;;;; Ledger
+(use-package ledger-mode ;> plain-text accounting driven by hledger
+  :mode "\\.journal\\'" ;. hledger journals; rules/csv files stay in their own modes
+  :custom
+  (ledger-binary-path "hledger") ;. reports and checks run hledger, not ledger; LEDGER_FILE (environment.d) picks the root journal
+  (ledger-mode-should-check-version nil) ;. the version probe only understands ledger's output
+  (ledger-report-auto-width nil) ;. hledger has no --columns flag
+  (ledger-report-use-native-highlighting nil) ;. ledger-only --color/--prepend-format flags
+  (ledger-reports '(("bal" "%(binary) bal") ;. no %(ledger-file): hledger reads LEDGER_FILE, so a report run from any one journal still sees the whole ledger
+                    ("reg" "%(binary) reg")
+                    ("is -M" "%(binary) is -M"))))
+(use-package hledger-mode ;> [wip]: one-session trial against ledger-mode (M-x hledger-mode on a .journal); keep the winner, drop the other
+  :straight (:host github :repo "narendraj9/hledger-mode")
+  :commands (hledger-mode hledger-run-command)) ;. no :mode on purpose — ledger-mode owns .journal until the trial decides
 ;;; Org
 ;;;; Settings
 (use-package org ;> org settings
   :straight (:type built-in) ;. Emacs 30 ships 9.7 stable; straight's default recipe tracks the 10.0-pre main branch
   :custom
   ;; Usability
-  (org-confirm-babel-evaluate nil) ;. Don't ask for confirmation when evaluating code blocks (for testing)
+  (org-confirm-babel-evaluate #'me/org-babel-confirm-p) ;. no prompt for files under the org root or this config; everything else asks (custom.el, Org)
   (org-startup-folded nil)
-  (org-src-fontify-natively t) ;. Enable syntax highlighting inside org-mode blocks
-  (org-src-tab-acts-natively t) ;. Maintain the code block's source language background colors/themes
+  (org-src-fontify-natively t) ;. highlight source blocks with their language's mode
+  (org-src-tab-acts-natively t) ;. TAB in a source block indents as the language's mode would
   (org-startup-with-inline-images t) ;. Auto-display inline images (ob-mermaid)
   ;; Edit settings
   (org-auto-align-tags nil)
@@ -760,9 +747,10 @@
           (when (file-directory-p dir)
             (directory-files-recursively dir "\\`[^#].*\\.org\\'"))))
   ;; Babel
-  (org-babel-do-load-languages ;. [fix]: was inside :custom — org-babel-do-load-languages is a function, not a
-   'org-babel-load-languages    ;. variable, so use-package silently mis-set it instead of calling it; belongs
-   '((clojure . t))))           ;. in :config, same as ob-mermaid does for mermaid/scheme below
+  (org-babel-do-load-languages ;. [fix]: a function, not a variable, so it must be called from :config (as ob-mermaid does below); in :custom use-package would set it as an option and never call it
+   'org-babel-load-languages
+   '((clojure . t)
+     (shell . t)))) ;. shell blocks run hledger reports in the ledger notes
 
 ;;;; Packages
 (use-package org-modern ;> modern looks for Org buffers
@@ -771,7 +759,14 @@
   (org-mode . org-modern-mode)
   (org-agenda-finalize . org-modern-agenda))
 
-(use-package org-super-agenda ;> supercharge your agenda
+(use-package me-dashboard ;> project dashboard: milestones, risk, burn-up — buffer (C-c D), HTML block and agenda view D
+  :straight nil ;. local package — local-packages/me-dashboard
+  :load-path "local-packages/me-dashboard" ;. the package directory, not the file
+  :commands (me/dashboard me/dashboard-export me/org-agenda-dashboard-entries
+             me/org-agenda-dashboard-setup me/org-agenda-toggle-group
+             me/org-agenda-milestone-prefix org-dblock-write:me-dashboard)) ;. autoloads only: nothing loads until C-c D, the first agenda or an export
+
+(use-package org-super-agenda ;> grouped agenda: section headers from category, tag and outline path
   :after org
   :hook ((org-agenda-mode . org-super-agenda-mode) ;. global mode; first agenda buffer is the right moment to load it
          (org-agenda-finalize . me/org-agenda-dashboard-setup)) ;. outline folding in the Dashboard buffer only (custom.el)
@@ -779,10 +774,10 @@
   (keymap-set org-super-agenda-header-map "TAB" #'me/org-agenda-toggle-group) ;. header map is only live on group header lines, so task lines keep their keys
   (keymap-set org-super-agenda-header-map "<tab>" #'me/org-agenda-toggle-group)) ;. GUI frames send <tab>, which the copied agenda map binds on its own
 
-(use-package org-habit ;> org habit
+(use-package org-habit ;> habit consistency graphs in the agenda
   :straight (:type built-in)
   :after org
-  :demand t) ;. require registers it with org-agenda; the old add-to-list never ran
+  :demand t) ;. the require registers habits with org-agenda; nothing else triggers it
 
 (use-package calendar ;> built-in calendar — only the holiday list is ours
   :straight (:type built-in)
@@ -821,15 +816,14 @@
   :bind (("C-c g" . org-gcal-sync) ;. pull + push managed entries; never automatic — the first run per calendar opens the browser for OAuth
          ("C-c G" . org-gcal-post-at-point)) ;. publish the org entry at point (a captured "e" event) to its calendar
   :init
-  (with-eval-after-load 'oauth2-auto (me/gcal-load-credentials)) ;. org-gcal.el requires oauth2-auto first and registers the provider from the id/secret in its last form
-                                                                 ;. — this is the only hook that runs in between, whatever command autoloads it
-  (setq plstore-cache-passphrase-for-symmetric-encryption t) ;. no GPG key here → plstore encrypts tokens symmetrically; ask the passphrase once per session, not per
-  :custom ;. token refresh (defvar in plstore.el, so :custom wouldn't apply it)
+  (with-eval-after-load 'oauth2-auto (me/gcal-load-credentials)) ;. org-gcal.el requires oauth2-auto first and registers the provider from the id/secret in its last form; this is the only hook that runs in between, whatever command autoloads it
+  (setq plstore-cache-passphrase-for-symmetric-encryption t) ;. no GPG key here, so plstore encrypts tokens symmetrically: one passphrase prompt per session, not per token refresh
+  :custom ;. plstore's variable is a plain defvar, which is why it is set in :init and not here
   (org-gcal-fetch-file-alist ;. (calendar-id . file) from me/gcal-calendars (custom.el); token store + cache dirs are set by no-littering
    (mapcar (lambda (c) (cons (car c) (cadr c))) me/gcal-calendars))
   (org-gcal-cancelled-todo-keyword "CANCELED")) ;. our keyword has one L; the default "CANCELLED" isn't in org-todo-keywords
 
-(use-package org-roam ;> database abstraction layer for Org
+(use-package org-roam ;> linked notes under roam/ with a backlinks buffer
   :after org
   :custom
   (org-roam-directory (file-truename (me/org-file "roam"))) ;. roam/ under the org root (me/org-directory, set in local.el)
@@ -837,11 +831,11 @@
    (concat "${title:*} " (propertize "${tags:40}" 'face 'org-tag)))
   (org-roam-capture-templates ;. work-specific entries (employer name/repo) live in me/roam-work-templates, local.el
    (append
-    '(("d" "Default" plain "%?" ;. :finalize me/org-roam-capture-finalize (custom.el) lands
-       :target (file+head "resources/${slug}.org" ;. in the new note and refreshes dirvish-side — plain
+    '(("d" "Default" plain "%?"
+       :target (file+head "resources/${slug}.org"
                           ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n#+filetags: \n#+date: %<%Y-%m-%d>\n")
-       :unnarrowed t ;. :jump-to-captured alone jumps too late for
-       :finalize me/org-roam-capture-finalize) ;. dirvish-side-follow-mode to pick it up
+       :unnarrowed t
+       :finalize me/org-roam-capture-finalize) ;. lands in the new note and refreshes dirvish-side; :jump-to-captured alone jumps too late for dirvish-side-follow-mode
       ("l" "Aprendizado" plain "%?"
        :target (file+head "resources/learn/${slug}.org"
                           ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n#+filetags: :learning:\n#+date: %<%Y-%m-%d>\n")
@@ -869,19 +863,16 @@
 (use-package org-re-reveal ;> export org to reveal.js (HTML5) presentations
   :after org
   :demand t) ;. must load eagerly to register the backend with org-export
-(use-package ob-json ;> json highlight for babel
-  :straight nil ;. use just for local-packages!
+(use-package ob-json ;> json source blocks: C-c C-c pretty-prints through jq, json-ts-mode highlights
+  :straight nil ;. local file under local-packages/
   :load-path "local-packages" ;. the directory (relative to user-emacs-directory) — naming the .el file breaks require
-  :demand t ;. force to open
-  :after org) ;. after org
+  :demand t ;. registers org-babel-execute:json and the src mode before the first org file opens
+  :after org)
 (use-package ob-mermaid ;> execute org babel mermaid
   :after org
   :demand t ;. load immediately after org (required to register the babel backend)
   :custom
-  (ob-mermaid-cli-path me/mermaid-cli-path) ;. [fix]: mermaid-cli 11.x strips spaces inside multi-word node labels under
-                                            ;. htmlLabels:false (verified regression vs 10.9.1) — the default is whatever mmdc
-                                            ;. is on PATH; pin a 10.9.1 binary in local.el (npm install -g
-                                            ;. @mermaid-js/mermaid-cli@10.9.1 under a node manager, leaving the system mmdc alone)
+  (ob-mermaid-cli-path me/mermaid-cli-path) ;. [fix]: mermaid-cli 11.x strips spaces inside multi-word node labels under htmlLabels:false, 10.9.1 does not; pin a 10.9.1 binary in local.el (see local.el.example) when the system mmdc is 11.x
   (ob-mermaid-default-config-file ;. htmlLabels:false — labels as plain SVG text, no foreignObject
    (expand-file-name "mermaid-config-emacs.json" user-emacs-directory))
   :config
@@ -893,10 +884,10 @@
    'org-babel-load-languages
    '((mermaid . t)
      (scheme . t))))
-(use-package htmlize ;> export org files as html with style css
+(use-package htmlize ;> colours source blocks for ox-html (inline-css output)
   :after org
   :demand t)
-(use-package ox-html ;> ox-html: .org to HTML export
+(use-package ox-html ;> HTML export; the theme comes from each file's #+HTML_THEME keyword
   :straight (:type built-in)
   :after (org htmlize)
   :demand t
@@ -921,16 +912,16 @@
 ;;;; Settings
 (keymap-global-set "C-c w"   'me/setup-workspaces) ;> open a tab for each repo in me/workspace-default-repos
 (keymap-global-set "C-c o"   'me/open-project-workspace) ;> open a new repo in an isolated tab (magit + dirvish side panel)
-(keymap-global-set "C-c t"   'me/open-terminal) ;> bash terminal scoped to project
+(keymap-global-set "C-c t"   'me/open-terminal) ;> terminal rooted at the project
 (keymap-global-set "C-c r"   'me/claude-review-branch) ;> claude code-review current branch
 (keymap-global-set "M-;"     'comment-or-uncomment-region) ;> comment and uncomment lines
-(keymap-global-set "C-c a"   'org-agenda) ;> org-agenda
-(keymap-global-set "C-c c"   'org-capture) ;> org-capture
+(keymap-global-set "C-c a"   'org-agenda) ;> agenda views
+(keymap-global-set "C-c c"   'org-capture) ;> capture templates
 (keymap-global-set "C-c D"   'me/dashboard) ;> project dashboard buffer: milestones, risk, burn-up (C-c a D is the task list)
 (keymap-global-set "C-c C"   'me/calendar) ;> calfw week calendar of every agenda file (C-c c is capture)
 (keymap-global-set "C-c e"   'me/open-config) ;> open init.el
 (keymap-global-set "C-g"     'me/keyboard-quit-dwim) ;> closes minibuffer even when unfocused
-(keymap-global-set "C-x t 2" 'me/new-scratch-tab) ;> new empty tab
+(keymap-global-set "C-x t 2" 'me/new-scratch-tab) ;> new tab on *scratch*
 ;;;; Packages
 (use-package which-key ;> display available keybindings in popup
   :straight (:type built-in)

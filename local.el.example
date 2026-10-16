@@ -12,6 +12,11 @@
 ;; files, gcal-*.org) and org-roam notes in <root>/roam/. Default is ~/org.
 (setq me/org-directory "~/org")
 
+;; Source blocks run without a prompt in Org files below the org root and
+;; this config directory.  Any other Org file asks first, and so does a
+;; buffer with no file.  List further directories you trust here.
+;; (setq me/org-babel-trusted-directories '("~/notes"))
+
 ;; mermaid CLI for ob-mermaid. Default is whatever `mmdc' is on PATH; pin a
 ;; specific binary when the system one misbehaves — mermaid-cli 11.x strips
 ;; spaces inside multi-word node labels under htmlLabels:false, 10.9.1 does

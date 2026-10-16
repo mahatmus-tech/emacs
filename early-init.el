@@ -13,8 +13,8 @@
 ;;; Performance
 (setq package-enable-at-startup nil) ;> disable built-in package.el, straight handles everything
 (setq site-run-file nil) ;> disable search in load-path for site-start.el
-(setq load-prefer-newer t) ;> [fix]: an edited .el must beat a stale sibling .elc — a July ob-json.elc
-                           ;. silently shadowed the August source for weeks
+(setq load-prefer-newer t) ;> [fix]: an edited .el must beat a stale sibling .elc, which would otherwise load
+                           ;. silently (the byte-compiled copy wins by default)
 (setq gc-cons-threshold most-positive-fixnum) ;> maximize gc threshold during startup
 (setq gc-cons-percentage 0.6) ;> defer GC more aggressively during startup
 (defvar me/file-name-handler-alist-backup file-name-handler-alist) ;> save file-name-handler-alist for post-startup restore
