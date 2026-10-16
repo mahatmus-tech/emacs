@@ -1,0 +1,29 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        emacs: ['29.4', '30.1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs }}
+      - name: Install magit-section from MELPA
+        run: |
+          emacs -Q --batch --eval '(progn
+            (require (quote package))
+            (add-to-list (quote package-archives) (quote ("melpa" . "https://melpa.org/packages/")))
+            (package-refresh-contents)
+            (package-install (quote magit-section)))'
+      - name: Compile, checkdoc and test the local packages
+        run: |
+          make check-packages \
+            EMACS=emacs \
+            LOADPATH="$(for d in ~/.emacs.d/elpa/*/; do printf -- '-L %s ' "$d"; done)"
