@@ -68,6 +68,18 @@ With an active region or no minibuffer, behave exactly like C-g; in a
   (interactive)
   (find-file (expand-file-name "init.el" user-emacs-directory)))
 
+(defun me/copy-file-path () ;> full path of the file (or Dired entry) at point onto the kill ring and clipboard
+  "Copy the absolute path of the current file to the kill ring.
+In a Dired or Dirvish buffer copy the entry at point, or the directory when
+point is not on an entry.  Signal a `user-error' in a buffer with no file."
+  (interactive)
+  (let ((path (or buffer-file-name
+                  (and (derived-mode-p 'dired-mode)
+                       (or (dired-get-filename nil t) default-directory)))))
+    (unless path (user-error "Buffer has no file"))
+    (kill-new path)
+    (message "Copied: %s" path)))
+
 (defun me/save-frame-colors (&rest _) ;> persist theme colors for next startup
   "Write current theme's frame params to frame-colors.el."
   (when (display-graphic-p) ;> skip in batch/TTY — font param would be "tty"

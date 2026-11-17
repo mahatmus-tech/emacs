@@ -255,6 +255,7 @@ Multiple projects each get their own session; =M-x claude-code-ide-list-sessions
 | =C-c g=           | ~org-gcal-sync~               | Pull/push Google Calendar events (first run: browser OAuth)   |
 | =C-c G=           | ~org-gcal-post-at-point~      | Publish the Org entry at point to its Google calendar         |
 | =C-c e=           | ~me/open-config~              | Open =init.el=                                                  |
+| =C-c y=           | ~me/copy-file-path~           | Copy the absolute path of the file (or Dired entry) at point  |
 | =C-c C-r=         | ~me/pr-review-forge-at-point~ | In a Forge topic: open it in pr-review                        |
 | =C-c p f/p/b/s/r= | project.el                  | find-file / switch-project / buffer / ripgrep / query-replace |
 | =C-c n l/f/g/i/c= | org-roam                    | buffer toggle / find / graph / insert / capture               |

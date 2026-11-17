@@ -920,6 +920,7 @@
 (keymap-global-set "C-c D"   'me/dashboard) ;> project dashboard buffer: milestones, risk, burn-up (C-c a D is the task list)
 (keymap-global-set "C-c C"   'me/calendar) ;> calfw week calendar of every agenda file (C-c c is capture)
 (keymap-global-set "C-c e"   'me/open-config) ;> open init.el
+(keymap-global-set "C-c y"   'me/copy-file-path) ;> copy the absolute path of the file (or Dired entry) at point
 (keymap-global-set "C-g"     'me/keyboard-quit-dwim) ;> closes minibuffer even when unfocused
 (keymap-global-set "C-x t 2" 'me/new-scratch-tab) ;> new tab on *scratch*
 ;;;; Packages
