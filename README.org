@@ -185,7 +185,7 @@ A full Todoist replacement, built on top of stock Org:
 | =A=                          | All Active, every TODO/NEXT/WAIT everywhere     |
 | =P=                          | Priority P1, urgent items only                  |
 
-Processing the inbox: refine (=INBOX= → =TODO= + priority + date), refile (=C-c C-w=) into the right category, or park it in =someday.org= if it's not actionable yet. =DONE= items should be archived (=C-c C-x C-a=) to keep the agenda clean.
+Processing the inbox: refine (=INBOX= → =TODO= + priority + date), refile (=C-c C-w=) into the right category, or park it in =someday.org= if it's not actionable yet. =DONE= items should be archived (=C-c C-x C-a= for the one at point, =C-c C-x C-S-a= for every =DONE= and =CANCELED= in the file) to keep the agenda clean.
 
 *** Task hierarchy and dashboard (=C-c D=, =C-c a D=)
 The task tree is area → project → front → milestone → task. An /area/ is a top-level entry of ~me/org-agenda-categories~; a /project/ is an entry with a sixth field, the key of its parent (an area's view then spans its children, and a child still gets its own capture template, refile target and calendar colour). Project entries are personal, so they are appended from =local.el= (example in =local.el.example=); the first capture into a project file creates its =* Inbox= heading. A /front/ is a level-1 heading and a /milestone/ is any heading tagged =:milestone:= (=C-c C-q= or =C-c C-c=; the tag is never inherited). Its progress is counted from the TODO states below it, not read from the =[n/m]= cookie, so a stale cookie cannot mislead the dashboard.

@@ -750,7 +750,8 @@
   (org-babel-do-load-languages ;. [fix]: a function, not a variable, so it must be called from :config (as ob-mermaid does below); in :custom use-package would set it as an option and never call it
    'org-babel-load-languages
    '((clojure . t)
-     (shell . t)))) ;. shell blocks run hledger reports in the ledger notes
+     (shell . t))) ;. shell blocks run hledger reports in the ledger notes
+  (keymap-set org-mode-map "C-c C-x C-S-a" #'me/org-archive-done-in-file)) ;. Shift form of C-c C-x C-a (archive subtree): archive every DONE/CANCELED in the file
 
 ;;;; Packages
 (use-package org-modern ;> modern looks for Org buffers

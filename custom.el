@@ -7,6 +7,7 @@
 (defvar dirvish-side-auto-expand)
 (defvar org-gcal-client-id)
 (defvar org-gcal-client-secret)
+(defvar org-map-continue-from)
 (declare-function auth-info-password "auth-source")
 (declare-function auth-source-search "auth-source")
 (declare-function calfw-org--schedule-period-to-calendar "calfw-org")
@@ -26,7 +27,9 @@
 (declare-function magit-status-setup-buffer "magit-status")
 (declare-function make-calfw-event "calfw")
 (declare-function make-calfw-source "calfw")
+(declare-function org-archive-subtree "org-archive")
 (declare-function org-collect-keywords "org")
+(declare-function org-map-entries "org")
 (declare-function org-export-derived-backend-p "ox")
 (declare-function tabspaces--list-tabspaces "tabspaces")
 (declare-function tabspaces--local-buffer-p "tabspaces")
@@ -564,6 +567,20 @@ foreign Org file would otherwise run shell code on export."
 (defun me/org-file (relative) ;> RELATIVE under me/org-directory, expanded at call time — i.e. after local.el loaded
   "Return RELATIVE expanded under `me/org-directory'."
   (expand-file-name relative me/org-directory))
+
+(defun me/org-archive-done-in-file () ;> archive every DONE and CANCELED entry of the buffer at once; Org only offers per-subtree (C-u C-c C-x C-s)
+  "Move every DONE and CANCELED entry of the current Org buffer to its archive location.
+Ask for confirmation first, showing how many entries will move."
+  (interactive)
+  (let ((n (length (org-map-entries #'ignore "/DONE|CANCELED" 'file))))
+    (if (zerop n)
+        (message "No DONE or CANCELED entries")
+      (when (y-or-n-p (format "Archive %d DONE/CANCELED entries? " n))
+        (org-map-entries (lambda ()
+                           (org-archive-subtree)
+                           (setq org-map-continue-from (point))) ;. the subtree is gone; resume the scan where it was
+                         "/DONE|CANCELED" 'file)
+        (message "Archived %d DONE/CANCELED entries" n)))))
 
 (defvar me/mermaid-cli-path (executable-find "mmdc") ;> mmdc for ob-mermaid; nil falls back to ob-mermaid's own PATH lookup; pin one in local.el
   "Path to the mermaid CLI.
