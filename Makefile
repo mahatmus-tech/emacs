@@ -2,7 +2,7 @@
 EMACS ?= emacs
 # Packages the local packages need at compile time; override in CI.
 LOADPATH ?= $(foreach d,$(wildcard straight/build/*/),-L $(abspath $(d)))
-PACKAGES := me-dashboard
+PACKAGES := me-dashboard me-task
 
 .PHONY: check check-parens check-init check-packages
 

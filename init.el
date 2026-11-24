@@ -740,7 +740,10 @@
        ((todo "TODO|NEXT"
               ((org-agenda-overriding-header "P1 — Urgent [#A]")
                (org-agenda-skip-function
-                '(org-agenda-skip-entry-if 'notregexp "\\[#A\\]")))))))))
+                '(org-agenda-skip-entry-if 'notregexp "\\[#A\\]"))))))
+      ("X" "Tasks without a ticket" ;. open tasks that have a task file (TASK_FILE) and were never sent to the team's system (no TASK_REF)
+       ((tags-todo "TASK_FILE={.+}-TASK_REF={.+}"
+                   ((org-agenda-overriding-header "Task file, no ticket yet"))))))))
   :config
   (setq org-agenda-files ;. every .org under agenda/ (gcal-*.org included); nil when the root doesn't exist yet
         (let ((dir (me/org-file "agenda")))
@@ -766,6 +769,18 @@
   :commands (me/dashboard me/dashboard-export me/org-agenda-dashboard-entries
              me/org-agenda-dashboard-setup me/org-agenda-toggle-group
              me/org-agenda-milestone-prefix org-dblock-write:me-dashboard)) ;. autoloads only: nothing loads until C-c D, the first agenda or an export
+
+(use-package me-task ;> task files for agenda headings: open or create one (C-c n t); template shared with the org-task Claude skill
+  :straight nil ;. local package — local-packages/me-task
+  :load-path "local-packages/me-task" ;. the package directory, not the file
+  :commands (me/task-open me/task-file-setup)
+  :hook (org-mode . me/task-file-setup) ;. centers task files only; loads the package with the first Org buffer (it requires only org)
+  :bind ("C-c n t" . me/task-open)) ;. next to the org-roam keys: a task file is a roam note; global, so it also works on an agenda line
+
+(use-package olivetti ;> centered text body — no built-in centers a buffer's text in its window
+  :commands olivetti-mode ;. turned on by me/task-file-setup, in task files only
+  :custom
+  (olivetti-body-width 100)) ;. columns of the centered body
 
 (use-package org-super-agenda ;> grouped agenda: section headers from category, tag and outline path
   :after org
