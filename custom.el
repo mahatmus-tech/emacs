@@ -245,6 +245,34 @@ silent."
         (set-face-attribute 'default nil :family family :height me/editor-font-height)
         family)))))
 
+(defvar me/prose-font-families ;> preference order for Org prose; the first one the display has wins
+  '("iA Writer Quattro S")
+  "Proportional font families for Org prose, best first.
+Override in `local.el'; see local.el.example.")
+
+(defvar me/prose-font-applied nil ;> family `me/set-prose-font' last applied; nil keeps Org buffers monospace
+  "Proportional family in use, or nil when none was installed.
+`me/org-reading-setup' turns on `variable-pitch-mode' only when non-nil.")
+
+(defun me/set-prose-font (&rest _) ;> pin variable-pitch to the prose family and fixed-pitch to the editor family; no-op without a graphic display
+  "Apply `me/prose-font-families' to the `variable-pitch' face.
+Set `fixed-pitch' to the family of the `default' face, so the Modus
+themes draw tables and code in the editor font, not in the system
+\"Monospace\".  Return the prose family applied, or nil.  Message when
+none is installed, so the monospace fallback is never silent.
+Ignore its arguments so it can sit on `enable-theme-functions'."
+  (when (display-graphic-p)
+    (let* ((available (font-family-list))
+           (family (seq-find (lambda (f) (member f available)) me/prose-font-families)))
+      (cond
+       ((null family)
+        (message "Prose font: none of %S installed, Org buffers stay monospace" me/prose-font-families)
+        nil)
+       (t
+        (set-face-attribute 'variable-pitch nil :family family :height 1.0) ;. relative height: prose is the size of the editor font
+        (set-face-attribute 'fixed-pitch nil :family (face-attribute 'default :family)) ;. copied from default, so call it after me/set-editor-font
+        family)))))
+
 (defun me/new-scratch-tab () ;> new tab with scratch buffer
   "Open a new tab showing the *scratch* buffer (bound to C-x t 2)."
   (interactive)
@@ -568,7 +596,56 @@ foreign Org file would otherwise run shell code on export."
   "Return RELATIVE expanded under `me/org-directory'."
   (expand-file-name relative me/org-directory))
 
-(defun me/org-archive-done-in-file () ;> archive every DONE and CANCELED entry of the buffer at once; Org only offers per-subtree (C-u C-c C-x C-s)
+(defun me/org-reading-setup () ;> buffer-local reading view for every Org buffer: soft wrap, no line numbers, airy lines
+  "Set up the current Org buffer for reading.
+Turn on `visual-line-mode', turn off `display-line-numbers-mode', add
+extra space between lines and, when `me/prose-font-applied' is set, turn
+on `variable-pitch-mode'.  Run from `org-mode-hook'."
+  (visual-line-mode 1) ;. wraps at word boundaries; also sets truncate-lines to nil, which beats the global t
+  (display-line-numbers-mode -1) ;. the gutter sits next to prose; global-display-line-numbers-mode stays on elsewhere
+  (setq-local line-spacing 0.15) ;. fraction of the line height, so it follows the font size
+  (when me/prose-font-applied
+    (variable-pitch-mode 1))) ;. buffer-local remap of default to variable-pitch; Modus keeps tables and code on fixed-pitch
+
+(defvar me/scroll-commands ;> scroll commands without the standard `scroll-command' property; they drag point like the others, which must not unwrap a table (see `me/org-table-wrap-skip-while-scrolling')
+  '(pixel-scroll-start-momentum pixel-scroll-interpolate-down pixel-scroll-interpolate-up
+    scroll-bar-toolkit-scroll)
+  "Commands whose only job is to scroll and that lack the `scroll-command' property.")
+
+(defun me/org-table-wrap-skip-while-scrolling (fn &rest args) ;> [fix]: org-table-wrap (a13daf6) unwraps the table point enters and wraps it again 0.2 s after point leaves; scrolling drags point through a table, so the page jumped
+  "Call FN with ARGS unless the current command only scrolls.
+Advice for `org-table-wrap--post-command'.  Point that moved by scrolling
+leaves the table wrapped; the next ordinary command with point in the
+table unwraps it, so editing still shows plain Org text.  The standard
+scroll commands (wheel, `scroll-up-command', ...) carry the
+`scroll-command' property; `me/scroll-commands' lists the rest."
+  (unless (and (symbolp this-command) ;; a lambda binding would make `get' signal and drop the hook
+               (or (get this-command 'scroll-command)
+                   (memq this-command me/scroll-commands)))
+    (apply fn args)))
+
+(defun me/org-table-wrap-draw-by-display (&rest _) ;> [fix]: org-table-wrap (a13daf6) draws with `invisible' + `before-string', after which redisplay cannot scroll back up over the table under word-wrap and a window margin
+  "Draw the newest org-table-wrap overlay with `display' instead.
+Advice for `org-table-wrap--apply-overlay' (:after).  The overlay keeps
+its text and range; only the way the wrapped table is drawn changes."
+  (let ((ov (nth 2 (car org-table-wrap--overlays))))
+    (when (and (overlayp ov) (overlay-get ov 'before-string))
+      (overlay-put ov 'display (overlay-get ov 'before-string))
+      (overlay-put ov 'before-string nil)
+      (overlay-put ov 'invisible nil))))
+
+(defun me/org-table-wrap-measure-bare (fn &rest args) ;> [fix]: org-table-wrap (a13daf6) measures a table that already has its overlay by the drawing, so a widened window dropped the wrap
+  "Call FN with every org-table-wrap overlay's `display' switched off.
+Advice for `org-table-wrap--table-width' (:around), so the width is that of
+the table text and not of its wrapped drawing."
+  (let ((saved (mapcar (lambda (o) (cons o (overlay-get o 'display)))
+                       (seq-filter (lambda (o) (overlay-get o 'org-table-wrap))
+                                   (overlays-in (point-min) (point-max))))))
+    (dolist (s saved) (overlay-put (car s) 'display nil))
+    (unwind-protect (apply fn args)
+      (dolist (s saved) (overlay-put (car s) 'display (cdr s))))))
+
+(defun me/org-archive-done-in-file ();> archive every DONE and CANCELED entry of the buffer at once; Org only offers per-subtree (C-u C-c C-x C-s)
   "Move every DONE and CANCELED entry of the current Org buffer to its archive location.
 Ask for confirmation first, showing how many entries will move."
   (interactive)

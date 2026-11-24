@@ -147,7 +147,10 @@
 
 ;;;; Themes
 (use-package modus-themes ;> the theme family omarchy derives its colours from
-  :demand t)
+  :demand t
+  :init
+  (setq modus-themes-mixed-fonts t) ;. tables, code, drawers, dates and checkboxes inherit fixed-pitch, so they stay monospace under variable-pitch-mode in Org (me/set-prose-font, custom.el)
+  (setq modus-themes-headings '((1 . (1.3)) (2 . (1.15)) (3 . (1.05)) (t . (1.0))))) ;. heading scale for every theme; no weight or family, headings follow the buffer's proportional font
 
 (use-package omarchy ;> omarchy visual themes
   :straight nil ;. local clone of omarchy.el, not a package-archive install
@@ -163,10 +166,12 @@
     (add-to-list 'omarchy-theme-map entry))
   (omarchy-init)
   (me/set-editor-font) ;> last, so the pinned family beats the font Omarchy just synced from the desktop
+  (setq me/prose-font-applied (me/set-prose-font)) ;. right after the editor font: fixed-pitch copies its final family; nil when the prose family is missing
   (me/save-frame-colors)) ;. rewrite frame-colors.el so the next startup pre-renders with the final font
 
 (add-hook 'enable-theme-functions #'me/tab-bar-refresh-focus-highlight) ;> tab-bar focus border tracks any theme (any package, or none)
 (add-hook 'after-init-hook #'me/tab-bar-refresh-focus-highlight) ;. catches whatever theme startup already applied
+(add-hook 'enable-theme-functions #'me/set-prose-font) ;> proportional and fixed-pitch families survive any theme switch (a theme may set these faces after the pin)
 
 ;;;; Modeline
 (use-package doom-modeline ;> compact mode line with project-relative file names
@@ -518,6 +523,9 @@
   (flymake-show-diagnostics-at-end-of-line 'short)) ;. most severe diagnostic inline at eol (Emacs 30) — no hover needed
 (use-package treesit ;> built-in tree-sitter (Emacs 30); the *-ts-modes need compiled grammars
   :straight (:type built-in)
+  :custom
+  (treesit-enabled-modes '(typescript-ts-mode js-ts-mode json-ts-mode)) ;. Emacs 31 native remap of .ts/.js/.json to their ts-modes — no per-mode :mode or remap entry; also lets typescript-ts-mode-maybe offer the grammar
+  (treesit-auto-install-grammar 'ask) ;. the default ask-dir also prompts for a directory every time; ask installs into tree-sitter/
   :config ;. runs on treesit load — the var doesn't exist before that; install-language-grammar loads it first
   (dolist (g '((yaml       . ("https://github.com/ikatyang/tree-sitter-yaml" "v0.5.0"))
                (dockerfile . ("https://github.com/camdencheek/tree-sitter-dockerfile" "v0.2.0"))))
@@ -620,6 +628,7 @@
 ;;;; Settings
 (use-package org ;> org settings
   :straight (:type built-in) ;. Emacs 30 ships 9.7 stable; straight's default recipe tracks the 10.0-pre main branch
+  :hook (org-mode . me/org-reading-setup) ;. reading view for every Org buffer: capture, org-roam notes, me-task files (custom.el, Org)
   :custom
   ;; Usability
   (org-confirm-babel-evaluate #'me/org-babel-confirm-p) ;. no prompt for files under the org root or this config; everything else asks (custom.el, Org)
@@ -761,7 +770,26 @@
   :after org
   :hook
   (org-mode . org-modern-mode)
-  (org-agenda-finalize . org-modern-agenda))
+  (org-agenda-finalize . org-modern-agenda)
+  :custom
+  (org-modern-table nil)) ;. off because org-modern would draw a table that org-table-wrap already redrew a second time
+
+(use-package org-table-wrap ;> a table wider than the window is drawn wrapped inside its cells; display overlay only, the buffer text is never changed, and it shows as plain Org text while point is in it
+  :straight (:host github :repo "benthamite/org-table-wrap")
+  :hook (org-mode . org-table-wrap-mode)
+  :config
+  (advice-add 'org-table-wrap--apply-overlay :after #'me/org-table-wrap-draw-by-display) ;. [fix]: draw with `display' so the page scrolls back up over the table
+  (advice-add 'org-table-wrap--table-width :around #'me/org-table-wrap-measure-bare) ;. [fix]: measure the table, not its drawing
+  (advice-add 'org-table-wrap--post-command :around #'me/org-table-wrap-skip-while-scrolling)) ;. [fix]: scrolling must not unwrap or wrap a table, that is what made the page jump
+
+(use-package visual-fill-column ;> cap Org line length at 100 columns, left-aligned: only a window wider than the cap gets a right margin
+  :hook (org-mode . visual-fill-column-mode)
+  :custom
+  (visual-fill-column-width 100) ;. counted in default-face columns, so a proportional line holds a bit more than 100 characters
+  (visual-fill-column-center-text nil)) ;. not centered: a centered column looks wrong beside other windows (olivetti was removed for that, d48cdde)
+
+(use-package org-appear ;> show the emphasis markers (*bold*, =code=) while point is inside the text; org-hide-emphasis-markers is on
+  :hook (org-mode . org-appear-mode))
 
 (use-package me-dashboard ;> project dashboard: milestones, risk, burn-up — buffer (C-c D), HTML block and agenda view D
   :straight nil ;. local package — local-packages/me-dashboard

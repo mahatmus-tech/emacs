@@ -23,6 +23,12 @@
 ;; not (npm install -g @mermaid-js/mermaid-cli@10.9.1 under a node manager).
 (setq me/mermaid-cli-path "~/.local/share/mise/installs/node/25.9.0/bin/mmdc")
 
+;; Proportional family for Org prose, best first; the first one the display
+;; has wins. Tables, code and drawers stay in the editor font. The tracked
+;; default is iA Writer Quattro S; when none is installed, Org buffers stay
+;; monospace and *Messages* names the list.
+;; (setq me/prose-font-families '("iA Writer Quattro S" "Inter"))
+
 ;; Google Calendar accounts — (calendar-id file label face), one per
 ;; calendar. Drives org-gcal sync, the generated "Event — Google Calendar
 ;; (<label>)" capture templates (first is bound to "e", second to "E"),
