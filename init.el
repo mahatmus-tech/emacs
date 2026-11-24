@@ -773,14 +773,8 @@
 (use-package me-task ;> task files for agenda headings: open or create one (C-c n t); template shared with the org-task Claude skill
   :straight nil ;. local package — local-packages/me-task
   :load-path "local-packages/me-task" ;. the package directory, not the file
-  :commands (me/task-open me/task-file-setup)
-  :hook (org-mode . me/task-file-setup) ;. centers task files only; loads the package with the first Org buffer (it requires only org)
+  :commands me/task-open ;. autoload only: nothing loads until C-c n t
   :bind ("C-c n t" . me/task-open)) ;. next to the org-roam keys: a task file is a roam note; global, so it also works on an agenda line
-
-(use-package olivetti ;> centered text body — no built-in centers a buffer's text in its window
-  :commands olivetti-mode ;. turned on by me/task-file-setup, in task files only
-  :custom
-  (olivetti-body-width 100)) ;. columns of the centered body
 
 (use-package org-super-agenda ;> grouped agenda: section headers from category, tag and outline path
   :after org

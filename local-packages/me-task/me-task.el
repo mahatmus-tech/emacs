@@ -31,7 +31,6 @@
 
 (defvar me/org-directory)
 (declare-function me/org-file "custom" (relative))
-(declare-function olivetti-mode "olivetti" (&optional arg))
 
 (defvar me/task-template-file "roam/resources/task-template.org" ;> the task file skeleton, relative to `me/org-directory'; shared with the org-task skill
   "Template of a task file, relative to `me/org-directory'.
@@ -56,11 +55,6 @@ FILE defaults to the file the current buffer visits."
     (and file
          (string-match-p "/roam/projects/[^/]+/tasks/[^/]+\\.org\\'" file)
          t)))
-
-(defun me/task-file-setup ()
-  "Center the text of a task file; do nothing in any other buffer."
-  (when (me/task-file-p)
-    (olivetti-mode 1)))
 
 (defun me/task--create ()
   "Create the task file of the heading at point and return its absolute path.

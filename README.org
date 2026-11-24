@@ -63,7 +63,7 @@ See =local.el.example= for the full list of overridable variables and their expe
 | =custom-set.el=             | Custom's own output, gitignored; written by Emacs, never edited by hand                  |
 | =init.el=                   | Bootstrap, built-in settings, one =use-package= per package, key bindings; wiring only     |
 | =local-packages/me-dashboard= | The project dashboard: buffer, HTML export and agenda view (GPL-3.0-or-later, own tests) |
-| =local-packages/me-task= | Task files for agenda headings: open or create, summary table, centered reading (own tests) |
+| =local-packages/me-task= | Task files for agenda headings: open or create, summary table (own tests) |
 | =local-packages/ob-json.el=, =omarchy.el= | Small local packages: jq-backed JSON babel blocks, Omarchy theme sync              |
 | =ox-html-themes/<name>/=    | One folder per HTML export theme: =style.css= plus =assets/=                              |
 
@@ -206,7 +206,6 @@ A task is an agenda heading. =C-c n t= (~me/task-open~) on a heading, or on a ta
 
 - The heading keeps the state (TODO keyword, deadline) and the properties =TASK_FILE=, =TASK_REF=, =TASK_URL=, =TASK_TYPE=, =TASK_MR=, =TASK_EXPORTED=. The task file keeps the text: =Task= (what goes to the team's board), =Contexto IA=, =MR= and =Log=.
 - The table at the top of a task file is a =columnview= dynamic block read from the heading, refreshed every time =C-c n t= opens the file (=C-c C-c= on the block refreshes it by hand).
-- Task files open centered with a 100-column body (~olivetti~); no other Org buffer changes.
 - =C-c a X= lists open tasks that have a task file and no =TASK_REF=, that is, not yet sent to the team's board.
 - The Claude skill =org-task= writes the same files from the same template and sends a task to the team's system after a confirmation.
 
