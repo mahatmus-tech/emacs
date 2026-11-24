@@ -109,5 +109,51 @@ place, and point starts at the first heading of work.org."
                                     "TASK_FILE={.+}-TASK_REF={.+}/!" 'file)
                    '("unsent")))))
 
+(defconst me-task-tests--sent
+  "#+PROPERTY: TASK_PROFILE acme\n* NEXT Sent task\nDEADLINE: <2026-12-01 Tue>\n:PROPERTIES:\n:TASK_REF: ID-1\n:TASK_URL: https://x/1\n:TASK_FILE: t.org\n:END:\n* TODO Linked only\n:PROPERTIES:\n:TASK_REF: ID-2\n:TASK_URL: https://x/2\n:END:\n* TODO Not sent\n:PROPERTIES:\n:TASK_FILE: u.org\n:END:\n"
+  "Two tasks with a ticket (one with a task file) and one without.")
+
+(defun me-task-tests--write (root name text)
+  "Write TEXT to the file NAME under ROOT."
+  (with-temp-file (expand-file-name name root) (insert text)))
+
+(ert-deftest me-task-export-pending-lists-sent-tasks-until-marked ()
+  (me-task-tests--with-root me-task-tests--sent
+    (me-task-tests--write root "t.org" "* Task\n** Contexto\nold\n* Contexto IA\nprivate\n")
+    (should (equal (with-output-to-string (me/task-export-pending root))
+                   "ID-1\thttps://x/1\tacme\tNEXT\t2026-12-01\tt.org\nID-2\thttps://x/2\tacme\tTODO\t\t\n"))
+    (should (equal (with-output-to-string (me/task-export-mark root "ID-1" "ID-2" "ID-9"))
+                   "ID-1 marked\nID-2 marked\nID-9 NOT FOUND\n"))
+    (should (equal (with-output-to-string (me/task-export-pending root)) ""))
+    (with-current-buffer (find-file-noselect work)
+      (goto-char (point-min))
+      (re-search-forward "^\\* NEXT")
+      (should (string-match-p "\\`\\[[0-9-]+ [A-Z][a-z][a-z] [0-9:]+\\]\\'" (org-entry-get nil "TASK_EXPORTED")))
+      (should (= (length (org-entry-get nil "TASK_EXPORTED_HASH")) 40)))))
+
+(ert-deftest me-task-export-pending-sees-task-text-state-and-deadline-changes ()
+  (me-task-tests--with-root me-task-tests--sent
+    (me-task-tests--write root "t.org" "* Task\nold\n* Contexto IA\nprivate\n* Log\n")
+    (me/task-export-mark root "ID-1" "ID-2")
+    (me-task-tests--write root "t.org" "* Task\nold\n* Contexto IA\nchanged\n* Log\n- line\n")
+    (should (equal (with-output-to-string (me/task-export-pending root)) "")) ;. private sections do not count
+    (me-task-tests--write root "t.org" "* Task\nnew decision\n* Contexto IA\nchanged\n")
+    (should (string-prefix-p "ID-1\t" (with-output-to-string (me/task-export-pending root))))
+    (me/task-export-mark root "ID-1")
+    (with-current-buffer (find-file-noselect work)
+      (goto-char (point-min))
+      (re-search-forward "^\\* TODO Linked only")
+      (replace-match "* DONE Linked only")
+      (save-buffer))
+    (should (equal (with-output-to-string (me/task-export-pending root))
+                   "ID-2\thttps://x/2\tacme\tDONE\t\t\n"))
+    (me/task-export-mark root "ID-2")
+    (with-current-buffer (find-file-noselect work)
+      (goto-char (point-min))
+      (re-search-forward "2026-12-01 Tue")
+      (replace-match "2026-12-08 Tue")
+      (save-buffer))
+    (should (string-match-p "^ID-1\t.*\t2026-12-08\t" (with-output-to-string (me/task-export-pending root))))))
+
 (provide 'me-task-tests)
 ;;; me-task-tests.el ends here
