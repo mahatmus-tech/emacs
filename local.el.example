@@ -25,9 +25,17 @@
 
 ;; Proportional family for Org prose, best first; the first one the display
 ;; has wins. Tables, code and drawers stay in the editor font. The tracked
-;; default is iA Writer Quattro S; when none is installed, Org buffers stay
-;; monospace and *Messages* names the list.
-;; (setq me/prose-font-families '("iA Writer Quattro S" "Inter"))
+;; default is Atkinson Hyperlegible, then iA Writer Quattro S as the fallback;
+;; when none is installed, Org buffers stay monospace and *Messages* names
+;; the list. The scale is the prose size relative to the editor font.
+;; (setq me/prose-font-families '("Atkinson Hyperlegible" "Inter"))
+;; (setq me/prose-font-scale 1.05)
+
+;; Editor font weights. The tracked defaults, Light text and SemiBold bold,
+;; suit a 109 PPI grayscale monitor; a denser or lower-contrast display may
+;; want a heavier pair.
+;; (setq me/editor-font-weight 'regular)
+;; (setq me/editor-bold-weight 'bold)
 
 ;; Google Calendar accounts — (calendar-id file label face), one per
 ;; calendar. Drives org-gcal sync, the generated "Event — Google Calendar

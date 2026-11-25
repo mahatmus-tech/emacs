@@ -219,36 +219,59 @@ Only directories (or symlinks to them) holding a readable `colors.toml'."
                                 (lambda () (me/omarchy-derive-theme f))))))
                     (directory-files dir t "\\`[^.]"))))))
 
-(defvar me/editor-font-families ;> preference order; the first one the display has wins
-  '("JetBrainsMono Nerd Font Mono" "JetBrainsMono Nerd Font")
-  "Editor font families, best first.
-The second is what Omarchy's base font package installs.")
 
-(defvar me/editor-font-height 120 ;> fixed size, 1/10 pt (12pt)
+(defvar me/editor-font-families ;> preference order; the first one the display has wins
+  '("GeistMono Nerd Font Mono" "GeistMono Nerd Font" "JetBrainsMono Nerd Font")
+  "Editor font families, best first.
+The last is what Omarchy's base font package installs.")
+
+(defvar me/editor-font-height 130 ;> fixed size, 1/10 pt (13pt)
   "Height of the `default' face; never taken from the Omarchy desktop.")
 
-(defun me/set-editor-font () ;> pin the default face to the configured family/height; no-op without a graphic display
-  "Apply `me/editor-font-families' and `me/editor-font-height'.
-Set them on the `default' face and return the family applied, or nil.
-Message when the preferred family is missing, so a fallback is never
-silent."
+(defvar me/editor-font-weight 'light ;> Light stems read thinner on a 109 PPI grayscale display; a family without it gets its closest style
+  "Weight of the `default' face; never taken from the Omarchy desktop.")
+
+(defvar me/editor-bold-weight 'semi-bold ;> Bold over a Light base is too big a jump; a theme may reset `bold', so it is re-applied on every theme load
+  "Weight of the `bold' face.")
+
+(defvar me/editor-symbol-font "CommitMono Nerd Font Mono" ;> draws the characters Geist Mono lacks, with the same 600/1000 advance, so columns stay aligned
+  "Family for the characters in `me/set-editor-font' that the editor family lacks.
+Optional: when it is not installed the display picks the family.")
+
+(defun me/set-editor-font (&rest _) ;> pin the default face to the configured family/height/weight, plus bold weight, symbols and the icon check; no-op without a graphic display
+  "Apply `me/editor-font-families', height, weight and bold weight.
+Set them on the `default' and `bold' faces and return the family
+applied, or nil.  Message when the preferred family is missing, so a
+fallback is never silent.  Draw U+2713, U+21D2 and U+2261, which Geist
+Mono lacks, from `me/editor-symbol-font' when it is installed.  Message
+when the `nerd-icons' family is missing.
+Ignore its arguments so it can sit on `enable-theme-functions'."
   (when (display-graphic-p)
     (let* ((available (font-family-list))
-           (family (seq-find (lambda (f) (member f available)) me/editor-font-families)))
+           (family (seq-find (lambda (f) (member f available)) me/editor-font-families))
+           (icons (or (bound-and-true-p nerd-icons-font-family) "Symbols Nerd Font Mono"))) ;. custom.el loads before the package, so the literal is the default it ships
+      (when (member me/editor-symbol-font available) ;. first: a fontset change makes Emacs re-derive the default height from the pixel size (130 reads 128), so the face set below must come after it
+        (dolist (char '(?\u2713 ?\u21D2 ?\u2261)) ;. check mark, rightwards double arrow, identical to; escapes, not glyphs, so the source stays plain ASCII
+          (set-fontset-font t char (font-spec :family me/editor-symbol-font)))) ;. fontset entries apply only where the face font has no glyph, so Geist keeps its own characters
       (cond
        ((null family)
-        (message "Editor font: none of %S installed, keeping the display default" me/editor-font-families)
-        nil)
+        (message "Editor font: none of %S installed, keeping the display default" me/editor-font-families))
        (t
         (unless (equal family (car me/editor-font-families))
           (message "Editor font: %s not installed, using %s" (car me/editor-font-families) family))
-        (set-face-attribute 'default nil :family family :height me/editor-font-height)
-        family)))))
+        (set-face-attribute 'default nil :family family :height me/editor-font-height :weight me/editor-font-weight)
+        (set-face-attribute 'bold nil :weight me/editor-bold-weight)))
+      (unless (member icons available)
+        (message "Icon font: %s not installed (ttf-nerd-fonts-symbols-mono)" icons))
+      family)))
 
 (defvar me/prose-font-families ;> preference order for Org prose; the first one the display has wins
-  '("iA Writer Quattro S")
+  '("Atkinson Hyperlegible" "iA Writer Quattro S")
   "Proportional font families for Org prose, best first.
-Override in `local.el'; see local.el.example.")
+The second is the fallback.  Override in `local.el'; see local.el.example.")
+
+(defvar me/prose-font-scale 1.05 ;> Org prose size relative to the editor font; code and tables in Org cancel it (`me/org-reading-setup')
+  "Height of the `variable-pitch' face, relative to the editor font.")
 
 (defvar me/prose-font-applied nil ;> family `me/set-prose-font' last applied; nil keeps Org buffers monospace
   "Proportional family in use, or nil when none was installed.
@@ -256,10 +279,12 @@ Override in `local.el'; see local.el.example.")
 
 (defun me/set-prose-font (&rest _) ;> pin variable-pitch to the prose family and fixed-pitch to the editor family; no-op without a graphic display
   "Apply `me/prose-font-families' to the `variable-pitch' face.
-Set `fixed-pitch' to the family of the `default' face, so the Modus
-themes draw tables and code in the editor font, not in the system
-\"Monospace\".  Return the prose family applied, or nil.  Message when
-none is installed, so the monospace fallback is never silent.
+Draw it in Regular weight at `me/prose-font-scale'.  Set `fixed-pitch'
+to the family of the `default' face, in `me/editor-font-weight' at the
+buffer's own height, so the Modus themes draw tables and code in the
+editor font, not in the system \"Monospace\".  Return the prose family
+applied, or nil.  Message when none is installed, so the monospace
+fallback is never silent.
 Ignore its arguments so it can sit on `enable-theme-functions'."
   (when (display-graphic-p)
     (let* ((available (font-family-list))
@@ -269,8 +294,8 @@ Ignore its arguments so it can sit on `enable-theme-functions'."
         (message "Prose font: none of %S installed, Org buffers stay monospace" me/prose-font-families)
         nil)
        (t
-        (set-face-attribute 'variable-pitch nil :family family :height 1.0) ;. relative height: prose is the size of the editor font
-        (set-face-attribute 'fixed-pitch nil :family (face-attribute 'default :family)) ;. copied from default, so call it after me/set-editor-font
+        (set-face-attribute 'variable-pitch nil :family family :weight 'regular :height me/prose-font-scale) ;. Regular: under variable-pitch-mode `default' is remapped here, so it would inherit Light, which Atkinson lacks; relative height, so the scale follows the editor size
+        (set-face-attribute 'fixed-pitch nil :family (face-attribute 'default :family) :weight me/editor-font-weight :height 1.0) ;. copied from default, so call it after me/set-editor-font; explicit weight, else tables and code in Org inherit Regular from the remapped default
         family)))))
 
 (defun me/new-scratch-tab () ;> new tab with scratch buffer
@@ -600,12 +625,14 @@ foreign Org file would otherwise run shell code on export."
   "Set up the current Org buffer for reading.
 Turn on `visual-line-mode', turn off `display-line-numbers-mode', add
 extra space between lines and, when `me/prose-font-applied' is set, turn
-on `variable-pitch-mode'.  Run from `org-mode-hook'."
+on `variable-pitch-mode' and cancel the prose scale on `fixed-pitch', so
+tables and code keep the editor size.  Run from `org-mode-hook'."
   (visual-line-mode 1) ;. wraps at word boundaries; also sets truncate-lines to nil, which beats the global t
   (display-line-numbers-mode -1) ;. the gutter sits next to prose; global-display-line-numbers-mode stays on elsewhere
   (setq-local line-spacing 0.15) ;. fraction of the line height, so it follows the font size
   (when me/prose-font-applied
-    (variable-pitch-mode 1))) ;. buffer-local remap of default to variable-pitch; Modus keeps tables and code on fixed-pitch
+    (variable-pitch-mode 1) ;. buffer-local remap of default to variable-pitch; Modus keeps tables and code on fixed-pitch
+    (face-remap-add-relative 'fixed-pitch :height (/ 1.0 me/prose-font-scale)))) ;. a relative height multiplies the remapped default (130 x 1.05), so divide it back; buffer-local, other buffers keep fixed-pitch at 1.0
 
 (defvar me/scroll-commands ;> scroll commands without the standard `scroll-command' property; they drag point like the others, which must not unwrap a table (see `me/org-table-wrap-skip-while-scrolling')
   '(pixel-scroll-start-momentum pixel-scroll-interpolate-down pixel-scroll-interpolate-up

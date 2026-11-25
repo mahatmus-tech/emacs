@@ -158,7 +158,7 @@
   :demand t
   :init
   (setq omarchy-default-theme 'modus-vivendi
-        omarchy-default-font  "JetBrainsMono Nerd Font Mono"
+        omarchy-default-font  (car me/editor-font-families)
         omarchy-font-height   me/editor-font-height) ;. any font apply by the package keeps the pinned size
   :config
   (require 'omarchy-themes) ; register bundled themes
@@ -172,6 +172,7 @@
 (add-hook 'enable-theme-functions #'me/tab-bar-refresh-focus-highlight) ;> tab-bar focus border tracks any theme (any package, or none)
 (add-hook 'after-init-hook #'me/tab-bar-refresh-focus-highlight) ;. catches whatever theme startup already applied
 (add-hook 'enable-theme-functions #'me/set-prose-font) ;> proportional and fixed-pitch families survive any theme switch (a theme may set these faces after the pin)
+(add-hook 'enable-theme-functions #'me/set-editor-font -10) ;> weight and bold weight survive any theme switch (a theme sets `bold' and may set `default'); depth -10 runs it before me/set-prose-font, which copies the default family
 
 ;;;; Modeline
 (use-package doom-modeline ;> compact mode line with project-relative file names
