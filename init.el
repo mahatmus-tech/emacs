@@ -134,7 +134,9 @@
 
 ;;; Visuals
 ;;;; Icons
-(use-package nerd-icons) ;> glyph set behind every nerd-icons-* integration below
+(use-package nerd-icons ;> glyph set behind every nerd-icons-* integration below
+  :custom
+  (nerd-icons-scale-factor 1.2)) ;. Geist's one-cell icons looked small at 17 px; 1.2 draws them at 20 px and widens each by 2 px
 
 (use-package nerd-icons-corfu ;> kind icons in the corfu popup
   :after corfu
