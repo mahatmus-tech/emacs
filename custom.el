@@ -243,8 +243,9 @@ Optional: when it is not installed the display picks the family.")
 Set them on the `default' and `bold' faces and return the family
 applied, or nil.  Message when the preferred family is missing, so a
 fallback is never silent.  Draw U+2713, U+21D2 and U+2261, which Geist
-Mono lacks, from `me/editor-symbol-font' when it is installed.  Message
-when the `nerd-icons' family is missing.
+Mono lacks, from `me/editor-symbol-font' when it is installed.  Draw the
+private-use icon glyphs from the editor family, one cell wide, instead
+of from the `nerd-icons' family.  Message when that family is missing.
 Ignore its arguments so it can sit on `enable-theme-functions'."
   (when (display-graphic-p)
     (let* ((available (font-family-list))
@@ -253,6 +254,8 @@ Ignore its arguments so it can sit on `enable-theme-functions'."
       (when (member me/editor-symbol-font available) ;. first: a fontset change makes Emacs re-derive the default height from the pixel size (130 reads 128), so the face set below must come after it
         (dolist (char '(?\u2713 ?\u21D2 ?\u2261)) ;. check mark, rightwards double arrow, identical to; escapes, not glyphs, so the source stays plain ASCII
           (set-fontset-font t char (font-spec :family me/editor-symbol-font)))) ;. fontset entries apply only where the face font has no glyph, so Geist keeps its own characters
+      (when family
+        (set-fontset-font t '(#xe000 . #xf8ff) (font-spec :family family))) ;. icons: nerd-icons asks for Symbols Nerd Font Mono, whose icons advance 17 px against the 10 px cell (1.7 cells); this entry makes the editor family, a Nerd Font, draw them in one cell, and a family without the glyph falls through to Symbols
       (cond
        ((null family)
         (message "Editor font: none of %S installed, keeping the display default" me/editor-font-families))
