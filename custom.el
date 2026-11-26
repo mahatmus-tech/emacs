@@ -635,7 +635,15 @@ tables and code keep the editor size.  Run from `org-mode-hook'."
   (setq-local line-spacing 0.15) ;. fraction of the line height, so it follows the font size
   (when me/prose-font-applied
     (variable-pitch-mode 1) ;. buffer-local remap of default to variable-pitch; Modus keeps tables and code on fixed-pitch
-    (face-remap-add-relative 'fixed-pitch :height (/ 1.0 me/prose-font-scale)))) ;. a relative height multiplies the remapped default (130 x 1.05), so divide it back; buffer-local, other buffers keep fixed-pitch at 1.0
+    (face-remap-add-relative 'fixed-pitch :height (/ 1.0 me/prose-font-scale))) ;. a relative height multiplies the remapped default (130 x 1.05), so divide it back; buffer-local, other buffers keep fixed-pitch at 1.0
+  (add-hook 'text-scale-mode-hook #'me/org-reading-refit nil t)) ;. `text-scale-adjust' changes glyph widths without resizing any window, so nothing else would refit the tables
+
+(defun me/org-reading-refit () ;> [fix]: after a text scale change the table wrap is still the one computed for the old glyph width, so tables overflow and wrap again
+  "Redo the wrapped tables of the current Org buffer after a short idle time.
+Run from the buffer-local `text-scale-mode-hook', as the package does for a
+window resize."
+  (when (and (derived-mode-p 'org-mode) (bound-and-true-p org-table-wrap-mode))
+    (org-table-wrap--window-size-changed nil)))
 
 (defvar me/scroll-commands ;> scroll commands without the standard `scroll-command' property; they drag point like the others, which must not unwrap a table (see `me/org-table-wrap-skip-while-scrolling')
   '(pixel-scroll-start-momentum pixel-scroll-interpolate-down pixel-scroll-interpolate-up
@@ -684,6 +692,54 @@ Ask for confirmation first, showing how many entries will move."
         (message "No DONE or CANCELED entries")
       (when (y-or-n-p (format "Archive %d DONE/CANCELED entries? " n))
         (org-map-entries (lambda ()
+(defun me/org-table-wrap-add-face (str face) ;> [fix]: the wrapped table is drawn over text that already has `org-table', and each further face inheriting `fixed-pitch' cancels the prose scale (`me/org-reading-setup') once more; `=code=' cells carried `org-table' and `org-formula' too, so their glyphs drew 1 to 2 px narrower and the right border of those rows drifted
+  "Add FACE to STR, keeping `org-verbatim' and `org-code' text on its own face.
+Override for `org-table-wrap--add-face'.  Drop `org-table' and
+`org-formula' from text that has `org-verbatim' or `org-code' and add
+nothing there; everything else gets FACE merged in, as the package does."
+  (let ((pos 0) (len (length str)))
+    (while (< pos len)
+      (let* ((existing (ensure-list (get-text-property pos 'face str)))
+             (next (or (next-single-property-change pos 'face str) len))
+             (kept (seq-remove (lambda (f) (memq f '(org-table org-formula))) existing)))
+        (put-text-property pos next 'face
+                           (if (seq-intersection kept '(org-verbatim org-code))
+                               kept
+                             (append kept (list face)))
+                           str)
+        (setq pos next)))))
+
+(defun me/org-table-wrap-rendered-width (win pos) ;> [fix]: org-table-wrap (a13daf6) measures the drawn table within the window width, so a table that overflowed and soft-wrapped measured as exactly the window and was never shrunk
+  "Return the pixel width of the table row drawn at POS in WIN, wrapping off.
+Override for `org-table-wrap--rendered-line-pixel-width'.  The x limit
+is far beyond the window, so an overflow shows as a width over the window."
+  (with-selected-window win
+    (save-excursion
+      (goto-char pos)
+      (car (window-text-pixel-size win (line-beginning-position) (line-end-position) 100000)))))
+
+(defun me/org-table-glyph-ratio () ;> the package counts columns in frame columns, but a table glyph is as wide as the default face only at text scale 0 (11 px at scale +1, 8 px at -1, where the 1/1.05 cancel rounds twice)
+  "Return the frame column width over the pixel width of one drawn table glyph.
+Measured on a string with `org-table' twice: the display string carries
+the face and the text it covers carries it again."
+  (/ (float (frame-char-width))
+     (/ (string-pixel-width (propertize (make-string 40 ?x) 'face '(org-table org-table))
+                            (current-buffer))
+        40.0)))
+
+(defun me/org-table-wrap-scale-allocation (args) ;> [fix]: the column budget is in 10 px frame columns while the drawn glyphs are not, so zoomed tables overflowed and small ones left the window half empty
+  "Convert the width budget in ARGS to table glyphs.
+Filter for the arguments of `org-table-wrap--allocate-widths': the budget
+is the window width in frame columns less the borders and padding; scale
+the window part by `me/org-table-glyph-ratio' and keep the borders as they
+are, since each border is one glyph."
+  (if noninteractive
+      args
+    (let* ((ncols (length (car args)))
+           (overhead (+ ncols 1 (* 2 org-table-wrap-padding ncols))))
+      (list (car args)
+            (- (floor (* (+ (cadr args) overhead) (me/org-table-glyph-ratio))) overhead)))))
+
                            (org-archive-subtree)
                            (setq org-map-continue-from (point))) ;. the subtree is gone; resume the scan where it was
                          "/DONE|CANCELED" 'file)

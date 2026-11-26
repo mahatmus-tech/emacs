@@ -780,16 +780,15 @@
 (use-package org-table-wrap ;> a table wider than the window is drawn wrapped inside its cells; display overlay only, the buffer text is never changed, and it shows as plain Org text while point is in it
   :straight (:host github :repo "benthamite/org-table-wrap")
   :hook (org-mode . org-table-wrap-mode)
+  :custom
+  (org-table-wrap-width-fraction 1.0) ;. the default 0.75 drew a 90-column body at 66 columns, so rows grew tall; the pixel fit pass still shrinks a table that overflows
   :config
   (advice-add 'org-table-wrap--apply-overlay :after #'me/org-table-wrap-draw-by-display) ;. [fix]: draw with `display' so the page scrolls back up over the table
   (advice-add 'org-table-wrap--table-width :around #'me/org-table-wrap-measure-bare) ;. [fix]: measure the table, not its drawing
+  (advice-add 'org-table-wrap--add-face :override #'me/org-table-wrap-add-face) ;. [fix]: no extra fixed-pitch face on `=code=' cells, else their glyphs draw narrower and the row drifts
+  (advice-add 'org-table-wrap--rendered-line-pixel-width :override #'me/org-table-wrap-rendered-width) ;. [fix]: measure the drawn table without the window width as its limit, so an overflow is seen and shrunk
+  (advice-add 'org-table-wrap--allocate-widths :filter-args #'me/org-table-wrap-scale-allocation) ;. [fix]: budget in table glyphs, not frame columns, so tables fit at any text scale
   (advice-add 'org-table-wrap--post-command :around #'me/org-table-wrap-skip-while-scrolling)) ;. [fix]: scrolling must not unwrap or wrap a table, that is what made the page jump
-
-(use-package visual-fill-column ;> cap Org line length at 100 columns, left-aligned: only a window wider than the cap gets a right margin
-  :hook (org-mode . visual-fill-column-mode)
-  :custom
-  (visual-fill-column-width 100) ;. counted in default-face columns, so a proportional line holds a bit more than 100 characters
-  (visual-fill-column-center-text nil)) ;. not centered: a centered column looks wrong beside other windows (olivetti was removed for that, d48cdde)
 
 (use-package org-appear ;> show the emphasis markers (*bold*, =code=) while point is inside the text; org-hide-emphasis-markers is on
   :hook (org-mode . org-appear-mode))
